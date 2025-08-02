@@ -8,11 +8,14 @@ import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import AddCustomerModal from "@/components/modals/add-customer-modal";
+import EditCustomerModal from "@/components/modals/edit-customer-modal";
 import type { Customer, Task } from "@shared/schema";
 
 export default function Customers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { toast } = useToast();
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
@@ -72,11 +75,7 @@ export default function Customers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
-          <p className="text-gray-500">Manage your client database and track their projects</p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button 
           onClick={() => setShowAddModal(true)}
           className="bg-primary text-white hover:bg-blue-700"
@@ -172,6 +171,10 @@ export default function Customers() {
                           <Button 
                             variant="outline" 
                             size="sm"
+                            onClick={() => {
+                              setEditingCustomer(customer);
+                              setShowEditModal(true);
+                            }}
                             data-testid={`button-edit-${customer.id}`}
                           >
                             <Edit className="w-4 h-4" />
@@ -198,6 +201,11 @@ export default function Customers() {
       </Card>
 
       <AddCustomerModal open={showAddModal} onOpenChange={setShowAddModal} />
+      <EditCustomerModal 
+        open={showEditModal} 
+        onOpenChange={setShowEditModal} 
+        customer={editingCustomer}
+      />
     </div>
   );
 }

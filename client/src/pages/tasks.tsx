@@ -114,11 +114,7 @@ export default function Tasks() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
-          <p className="text-gray-500">Manage and track all tasks across your organization</p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button 
           onClick={() => setShowAddModal(true)}
           className="bg-primary text-white hover:bg-blue-700"

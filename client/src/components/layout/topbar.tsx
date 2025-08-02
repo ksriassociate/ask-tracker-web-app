@@ -2,6 +2,7 @@ import { Search, Bell, Plus, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import AddTaskModal from "@/components/modals/add-task-modal";
 import AddEmployeeModal from "@/components/modals/add-employee-modal";
 import AddCustomerModal from "@/components/modals/add-customer-modal";
@@ -16,10 +17,33 @@ interface TopBarProps {
   onMenuClick: () => void;
 }
 
+const getPageTitle = (path: string) => {
+  switch (path) {
+    case '/': return 'Dashboard';
+    case '/employees': return 'Employees';
+    case '/tasks': return 'Tasks';
+    case '/customers': return 'Customers';
+    case '/reports': return 'Reports';
+    default: return 'Dashboard';
+  }
+};
+
+const getPageDescription = (path: string) => {
+  switch (path) {
+    case '/': return "Welcome back! Here's what's happening today.";
+    case '/employees': return 'Manage your team members and their information';
+    case '/tasks': return 'Manage and track all tasks across your organization';
+    case '/customers': return 'Manage your client database and track their projects';
+    case '/reports': return 'Comprehensive insights into your team\'s productivity';
+    default: return "Welcome back! Here's what's happening today.";
+  }
+};
+
 export default function TopBar({ onMenuClick }: TopBarProps) {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [location] = useLocation();
 
   return (
     <>
@@ -36,8 +60,8 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
               <Menu className="h-6 w-6" />
             </Button>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-              <p className="text-sm text-gray-500">Welcome back! Here's what's happening today.</p>
+              <h2 className="text-2xl font-bold text-gray-900">{getPageTitle(location)}</h2>
+              <p className="text-sm text-gray-500">{getPageDescription(location)}</p>
             </div>
           </div>
           

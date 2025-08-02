@@ -32,11 +32,11 @@ export default function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) 
     resolver: zodResolver(insertTaskSchema),
     defaultValues: {
       title: "",
-      description: "",
+      description: null,
       status: "pending",
       priority: "medium",
       assignedTo: "",
-      customerId: "",
+      customerId: null,
       dueDate: "",
     },
   });
@@ -127,6 +127,7 @@ export default function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) 
                       rows={4} 
                       placeholder="Enter task description" 
                       {...field} 
+                      value={field.value || ""}
                       data-testid="textarea-task-description"
                     />
                   </FormControl>
@@ -184,7 +185,7 @@ export default function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger data-testid="select-task-customer">
                           <SelectValue placeholder="Select Customer" />

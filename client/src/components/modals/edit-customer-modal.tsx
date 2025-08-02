@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { insertCustomerSchema, type InsertCustomer } from "@shared/schema";
+import { insertCustomerSchema, type InsertCustomer, type Customer } from "@shared/schema";
+import { useEffect } from "react";
 
-interface AddCustomerModalProps {
+interface EditCustomerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  customer: Customer | null;
 }
 
-export default function AddCustomerModal({ open, onOpenChange }: AddCustomerModalProps) {
+export default function EditCustomerModal({ open, onOpenChange, customer }: EditCustomerModalProps) {
   const { toast } = useToast();
 
   const form = useForm<InsertCustomer>({
@@ -27,35 +29,46 @@ export default function AddCustomerModal({ open, onOpenChange }: AddCustomerModa
     },
   });
 
-  const createCustomerMutation = useMutation({
-    mutationFn: (data: InsertCustomer) => apiRequest("POST", "/api/customers", data),
+  // Reset form when customer changes
+  useEffect(() => {
+    if (customer) {
+      form.reset({
+        name: customer.name,
+        email: customer.email,
+        company: customer.company,
+        phone: customer.phone || null,
+      });
+    }
+  }, [customer, form]);
+
+  const updateCustomerMutation = useMutation({
+    mutationFn: (data: InsertCustomer) => apiRequest("PUT", `/api/customers/${customer?.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       toast({
         title: "Success",
-        description: "Customer created successfully",
+        description: "Customer updated successfully",
       });
-      form.reset();
       onOpenChange(false);
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to create customer",
+        description: "Failed to update customer",
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: InsertCustomer) => {
-    createCustomerMutation.mutate(data);
+    updateCustomerMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add New Customer</DialogTitle>
+          <DialogTitle>Edit Customer</DialogTitle>
         </DialogHeader>
         
         <Form {...form}>
@@ -67,7 +80,7 @@ export default function AddCustomerModal({ open, onOpenChange }: AddCustomerModa
                 <FormItem>
                   <FormLabel>Company Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter company name" {...field} data-testid="input-customer-company" />
+                    <Input placeholder="Enter company name" {...field} data-testid="input-edit-customer-company" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -81,7 +94,7 @@ export default function AddCustomerModal({ open, onOpenChange }: AddCustomerModa
                 <FormItem>
                   <FormLabel>Contact Person</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter contact person name" {...field} data-testid="input-customer-name" />
+                    <Input placeholder="Enter contact person name" {...field} data-testid="input-edit-customer-name" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -99,7 +112,7 @@ export default function AddCustomerModal({ open, onOpenChange }: AddCustomerModa
                       type="email" 
                       placeholder="Enter email address" 
                       {...field} 
-                      data-testid="input-customer-email"
+                      data-testid="input-edit-customer-email"
                     />
                   </FormControl>
                   <FormMessage />
@@ -117,9 +130,9 @@ export default function AddCustomerModal({ open, onOpenChange }: AddCustomerModa
                     <Input 
                       type="tel" 
                       placeholder="Enter phone number" 
-                      {...field} 
+                      {...field}
                       value={field.value || ""}
-                      data-testid="input-customer-phone"
+                      data-testid="input-edit-customer-phone"
                     />
                   </FormControl>
                   <FormMessage />
@@ -132,17 +145,17 @@ export default function AddCustomerModal({ open, onOpenChange }: AddCustomerModa
                 type="button" 
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                data-testid="button-cancel-customer"
+                data-testid="button-cancel-edit-customer"
               >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
-                disabled={createCustomerMutation.isPending}
+                disabled={updateCustomerMutation.isPending}
                 className="bg-primary text-white hover:bg-blue-700"
-                data-testid="button-create-customer"
+                data-testid="button-update-customer"
               >
-                {createCustomerMutation.isPending ? "Creating..." : "Create Customer"}
+                {updateCustomerMutation.isPending ? "Updating..." : "Update Customer"}
               </Button>
             </div>
           </form>

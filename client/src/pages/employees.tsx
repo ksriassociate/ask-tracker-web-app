@@ -73,11 +73,7 @@ export default function Employees() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-          <p className="text-gray-500">Manage your team members and their information</p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button 
           onClick={() => setShowAddModal(true)}
           className="bg-primary text-white hover:bg-blue-700"

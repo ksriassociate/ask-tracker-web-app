@@ -92,6 +92,7 @@ export class MemStorage implements IStorage {
     const customer: Customer = {
       ...insertCustomer,
       id,
+      phone: insertCustomer.phone || null,
       createdAt: new Date(),
     };
     this.customers.set(id, customer);
@@ -131,8 +132,13 @@ export class MemStorage implements IStorage {
   async createTask(insertTask: InsertTask): Promise<Task> {
     const id = randomUUID();
     const task: Task = {
-      ...insertTask,
       id,
+      title: insertTask.title,
+      description: insertTask.description || null,
+      status: 'pending' as const,
+      priority: insertTask.priority as Task['priority'],
+      assignedTo: insertTask.assignedTo,
+      customerId: insertTask.customerId || null,
       dueDate: new Date(insertTask.dueDate),
       createdAt: new Date(),
       completedAt: null,
