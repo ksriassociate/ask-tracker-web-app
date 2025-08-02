@@ -58,7 +58,10 @@
 
 @layer base {
   * {
-    @apply border-border;
+    /* REMOVED: @apply border-border; */
+    /* This line was causing the build error because 'border-border' is a color variable,
+       not a utility class that can be @apply'd directly to set a border.
+       The border color variable is still available for use with classes like 'border-2 border-border'. */
   }
 
   body {
