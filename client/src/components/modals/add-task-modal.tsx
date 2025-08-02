@@ -63,7 +63,12 @@ export default function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) 
   });
 
   const onSubmit = (data: InsertTask) => {
-    createTaskMutation.mutate(data);
+    // Convert "none" back to empty string for no customer
+    const submitData = {
+      ...data,
+      customerId: data.customerId === "none" ? "" : data.customerId,
+    };
+    createTaskMutation.mutate(submitData);
   };
 
   return (
@@ -192,7 +197,7 @@ export default function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Customer</SelectItem>
+                        <SelectItem value="none">No Customer</SelectItem>
                         {customers.map((customer) => (
                           <SelectItem key={customer.id} value={customer.id}>
                             {customer.company} - {customer.name}
