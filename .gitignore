@@ -1,6 +1,13 @@
-node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+# Replit specific files
+.local/
+.replit
+replit.nix
+.upm/
+.config/
+# Other common ignores
+node_modules/
+build/
+dist/
+# Any other files you don't want to commit (e.g., sensitive keys, temporary logs)
+*.log
+*.env
