@@ -6,6 +6,25 @@
 @tailwind utilities;
 
 /*
+  Define your custom CSS variables here.
+  Your Tailwind CSS output references these, and without them,
+  your classes won't have any values to apply.
+*/
+:root {
+  /* Colors */
+  --color-bg: #f8f9fa;
+  --color-text: #212529;
+  --color-border: #dee2e6;
+  --sidebar-accent: 210 50% 60%; /* A hue, saturation, and lightness value */
+  --sidebar-border: 210 5% 75%;
+  --tw-shadow-color: 0 0 0;
+
+  /* Dimensions */
+  --sidebar-width: 250px;
+  --sidebar-width-icon: 56px;
+}
+
+/*
   Add global styles for the body.
   - We're setting a default text color for the entire page.
   - `antialiased` is a useful utility for smoother font rendering.
