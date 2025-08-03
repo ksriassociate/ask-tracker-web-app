@@ -1,3 +1,4 @@
+import './styles.css';
 import React, { useState, useEffect } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Home, Users, Briefcase, FileText, Menu, X, Plus, Clock, ChevronUp, ChevronDown, Trash2, Edit } from 'lucide-react';
