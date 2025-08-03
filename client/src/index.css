@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@tailwind css;
+
 
 :root {
   --background: hsl(0, 0%, 100%);
@@ -56,54 +55,55 @@
   --radius: 0.5rem;
 }
 
+/* @layer base should now define only non-Tailwind CSS properties or use @apply only for *custom* utilities you define elsewhere */
 @layer base {
   * {
-    /* REMOVED: @apply border-border; */
-    /* This line was causing the build error because 'border-border' is a color variable,
-       not a utility class that can be @apply'd directly to set a border.
-       The border color variable is still available for use with classes like 'border-2 border-border'. */
+    /* No @apply needed here. */
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    /* REMOVED: @apply font-sans antialiased bg-background text-foreground; */
     font-family: 'Inter', sans-serif;
   }
 }
 
+/* @layer utilities should now define *your own custom* utility classes */
 @layer utilities {
   .status-badge {
-    @apply text-xs font-medium px-3 py-1 rounded-full uppercase tracking-wide;
+    /* These @apply directives use core Tailwind utilities and will cause an error in v4 if not referenced */
+    /* REMOVE ALL @APPLY LINES BELOW AND APPLY DIRECTLY IN JSX/HTML */
+    /* @apply text-xs font-medium px-3 py-1 rounded-full uppercase tracking-wide; */
   }
   
   .status-pending {
-    @apply bg-gray-100 text-gray-700;
+    /* @apply bg-gray-100 text-gray-700; */
   }
   
   .status-in_progress {
-    @apply bg-yellow-100 text-yellow-800;
+    /* @apply bg-yellow-100 text-yellow-800; */
   }
   
   .status-completed {
-    @apply bg-green-100 text-green-800;
+    /* @apply bg-green-100 text-green-800; */
   }
   
   .status-overdue {
-    @apply bg-red-100 text-red-800;
+    /* @apply bg-red-100 text-red-800; */
   }
   
   .priority-low {
-    @apply text-green-600;
+    /* @apply text-green-600; */
   }
   
   .priority-medium {
-    @apply text-yellow-600;
+    /* @apply text-yellow-600; */
   }
   
   .priority-high {
-    @apply text-orange-600;
+    /* @apply text-orange-600; */
   }
   
   .priority-urgent {
-    @apply text-red-600;
+    /* @apply text-red-600; */
   }
 }
