@@ -1,300 +1,344 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Get Supabase credentials from environment variables using Vite's import.meta.env
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// IMPORTANT: The app now gets these values from Netlify's environment variables.
+// You must have VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY set in your Netlify dashboard.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Check if credentials are set to prevent errors
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase URL or Anon Key is missing. Please check your .env file or Netlify environment variables.');
-}
+// Create a single Supabase client for your app.
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Main App Component
-function App() {
+// The main application component.
+export default function App() {
   const [employees, setEmployees] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  const [newEmployeeName, setNewEmployeeName] = useState('');
+
   const [tasks, setTasks] = useState([]);
-  const [activeTab, setActiveTab] = useState('employees'); // State to manage which table is displayed
+  const [newTaskDescription, setNewTaskDescription] = useState('');
 
-  // State for form management (for adding/editing)
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [formData, setFormData] = useState({});
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [newCustomerName, setNewCustomerName] = useState('');
 
-  // Function to fetch data from a given table
-  const fetchData = async (table, setData) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Function to fetch all data from Supabase.
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase.from(table).select('*');
-      if (error) throw error;
-      setData(data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      setLoading(true);
+      setError(null);
+
+      // Fetch employees
+      const { data: employeesData, error: employeesError } = await supabase.from('employees').select('*');
+      if (employeesError) throw employeesError;
+      setEmployees(employeesData);
+
+      // Fetch tasks
+      const { data: tasksData, error: tasksError } = await supabase.from('tasks').select('*');
+      if (tasksError) throw tasksError;
+      setTasks(tasksData);
+
+      // Fetch customers
+      const { data: customersData, error: customersError } = await supabase.from('customers').select('*');
+      if (customersError) throw customersError;
+      setCustomers(customersData);
+
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load data. Please check your Supabase connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Real-time listener for all tables
-  const setupRealtimeSubscriptions = () => {
-    supabase.channel('public:employees').on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, payload => {
-      fetchData('employees', setEmployees);
-    }).subscribe();
-
-    supabase.channel('public:customers').on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, payload => {
-      fetchData('customers', setCustomers);
-    }).subscribe();
-
-    supabase.channel('public:tasks').on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, payload => {
-      fetchData('tasks', setTasks);
-    }).subscribe();
-  };
-
+  // Authenticate and fetch data on component mount.
   useEffect(() => {
-    // Initial fetch for all tables
-    fetchData('employees', setEmployees);
-    fetchData('customers', setCustomers);
-    fetchData('tasks', setTasks);
-    
-    // Set up real-time listeners
-    setupRealtimeSubscriptions();
-
-    // Clean up subscriptions on unmount
-    return () => {
-      supabase.removeAllSubscriptions();
+    const signInAndFetch = async () => {
+      // Sign in anonymously to get a session for RLS.
+      const { error: authError } = await supabase.auth.signInAnonymously();
+      if (authError) {
+        console.error('Anonymous sign-in failed:', authError);
+        setError('Failed to authenticate. Check Supabase auth settings.');
+      } else {
+        setIsAuthenticated(true);
+      }
     };
+    signInAndFetch();
   }, []);
 
-  // Handler for form input changes
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    // Special handling for foreign keys, converting string value to number
-    if (name === 'assigned_to_employee' || name === 'assigned_to_customer') {
-      setFormData({ ...formData, [name]: value ? Number(value) : null });
-    } else {
-      setFormData({ ...formData, [name]: value });
+  // Use a separate effect to fetch data once authenticated.
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchData();
     }
-  };
+  }, [isAuthenticated]);
 
-  // Handler for form submission (add or update)
-  const handleFormSubmit = async (e) => {
+  // Function to handle adding a new employee.
+  const handleAddEmployee = async (e) => {
     e.preventDefault();
+    if (newEmployeeName.trim() === '') return;
+
     try {
-      if (isEditMode) {
-        // Update existing item
-        await supabase.from(activeTab).update(formData).eq('id', selectedItem.id);
-        console.log('Update successful!');
-      } else {
-        // Add new item
-        await supabase.from(activeTab).insert([formData]);
-        console.log('Insertion successful!');
+      // Using { returning: 'minimal' } to suppress the implicit SELECT
+      const { error } = await supabase
+        .from('employees')
+        .insert([{ name: newEmployeeName }], { returning: 'minimal' });
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        setError(`Failed to add employee: ${error.message}`);
+        return;
       }
-      resetForm();
-    } catch (error) {
-      console.error('Error submitting form:', error);
+      
+      // Since we are not returning data, we'll re-fetch the list to update the UI
+      fetchData();
+      setNewEmployeeName('');
+    } catch (err) {
+      console.error('Error adding employee:', err);
+      setError('An unexpected error occurred while adding an employee.');
     }
   };
 
-  // Handler for deleting an item
-  const handleDelete = async (id) => {
+  // Function to handle deleting an employee.
+  const handleDeleteEmployee = async (id) => {
     try {
-      await supabase.from(activeTab).delete().eq('id', id);
-      console.log('Deletion successful!');
-    } catch (error) {
-      console.error('Error deleting item:', error);
+      const { error } = await supabase
+        .from('employees')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase delete error:', error);
+        setError(`Failed to delete employee: ${error.message}`);
+        return;
+      }
+      setEmployees(employees.filter(employee => employee.id !== id));
+    } catch (err) {
+      console.error('Error deleting employee:', err);
+      setError('An unexpected error occurred while deleting an employee.');
     }
   };
 
-  // Function to load an item into the form for editing
-  const handleEdit = (item) => {
-    setSelectedItem(item);
-    setFormData(item);
-    setIsEditMode(true);
-  };
+  // Function to handle adding a new task.
+  const handleAddTask = async (e) => {
+    e.preventDefault();
+    if (newTaskDescription.trim() === '') return;
 
-  // Function to reset the form
-  const resetForm = () => {
-    setSelectedItem(null);
-    setFormData({});
-    setIsEditMode(false);
-  };
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .insert([{ description: newTaskDescription }], { returning: 'minimal' });
 
-  // Render the form based on the active tab
-  const renderForm = () => {
-    switch (activeTab) {
-      case 'employees':
-        return (
-          <form onSubmit={handleFormSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
-              <input type="text" name="name" value={formData.name || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input type="text" name="email" value={formData.email || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Phone</label>
-              <input type="text" name="phone" value={formData.phone || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" />
-            </div>
-            <div className="flex space-x-2">
-              <button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                {isEditMode ? 'Update' : 'Add'} Employee
-              </button>
-              {isEditMode && <button type="button" onClick={resetForm} className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Cancel</button>}
-            </div>
-          </form>
-        );
-      case 'customers':
-        return (
-          <form onSubmit={handleFormSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
-              <input type="text" name="name" value={formData.name || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Company Name</label>
-              <input type="text" name="company_name" value={formData.company_name || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input type="text" name="email" value={formData.email || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Phone</label>
-              <input type="text" name="phone" value={formData.phone || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" />
-            </div>
-            <div className="flex space-x-2">
-              <button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                {isEditMode ? 'Update' : 'Add'} Customer
-              </button>
-              {isEditMode && <button type="button" onClick={resetForm} className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Cancel</button>}
-            </div>
-          </form>
-        );
-      case 'tasks':
-        return (
-          <form onSubmit={handleFormSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Title</label>
-              <input type="text" name="title" value={formData.title || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Description</label>
-              <textarea name="description" value={formData.description || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Status</label>
-              <input type="text" name="status" value={formData.status || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Assigned To Employee</label>
-              <select name="assigned_to_employee" value={formData.assigned_to_employee || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" required>
-                <option value="">Select an employee</option>
-                {employees.map(employee => (
-                  <option key={employee.id} value={employee.id}>{employee.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Assigned To Customer (Optional)</label>
-              <select name="assigned_to_customer" value={formData.assigned_to_customer || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2">
-                <option value="">Select a customer</option>
-                {customers.map(customer => (
-                  <option key={customer.id} value={customer.id}>{customer.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex space-x-2">
-              <button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                {isEditMode ? 'Update' : 'Add'} Task
-              </button>
-              {isEditMode && <button type="button" onClick={resetForm} className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Cancel</button>}
-            </div>
-          </form>
-        );
-      default:
-        return null;
+      if (error) {
+        console.error('Supabase insert error:', error);
+        setError(`Failed to add task: ${error.message}`);
+        return;
+      }
+
+      fetchData();
+      setNewTaskDescription('');
+    } catch (err) {
+      console.error('Error adding task:', err);
+      setError('An unexpected error occurred while adding a task.');
     }
   };
 
-  // Render the list of items
-  const renderList = (items) => (
-    <div className="mt-8">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} List</h2>
-      <ul className="divide-y divide-gray-200">
-        {items.map((item) => (
-          <li key={item.id} className="py-4 flex justify-between items-center">
-            <div>
-              {activeTab === 'employees' && <p className="text-lg font-medium text-gray-900">{item.name}</p>}
-              {activeTab === 'customers' && <p className="text-lg font-medium text-gray-900">{item.name}</p>}
-              {activeTab === 'tasks' && <p className="text-lg font-medium text-gray-900">{item.title}</p>}
-              {activeTab === 'tasks' && (
-                <p className="text-sm text-gray-500">{item.description}</p>
-              )}
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handleEdit(item)}
-                className="text-indigo-600 hover:text-indigo-900 font-medium"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(item.id)}
-                className="text-red-600 hover:text-red-900 font-medium"
-              >
-                Delete
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  // Function to handle deleting a task.
+  const handleDeleteTask = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase delete error:', error);
+        setError(`Failed to delete task: ${error.message}`);
+        return;
+      }
+      setTasks(tasks.filter(task => task.id !== id));
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      setError('An unexpected error occurred while deleting a task.');
+    }
+  };
+
+  // Function to handle adding a new customer.
+  const handleAddCustomer = async (e) => {
+    e.preventDefault();
+    if (newCustomerName.trim() === '') return;
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .insert([{ name: newCustomerName }], { returning: 'minimal' });
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        setError(`Failed to add customer: ${error.message}`);
+        return;
+      }
+
+      fetchData();
+      setNewCustomerName('');
+    } catch (err) {
+      console.error('Error adding customer:', err);
+      setError('An unexpected error occurred while adding a customer.');
+    }
+  };
+
+  // Function to handle deleting a customer.
+  const handleDeleteCustomer = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase delete error:', error);
+        setError(`Failed to delete customer: ${error.message}`);
+        return;
+      }
+      setCustomers(customers.filter(customer => customer.id !== id));
+    } catch (err) {
+      console.error('Error deleting customer:', err);
+      setError('An unexpected error occurred while deleting a customer.');
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8 font-sans">
-      <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-xl">
-        <h1 className="text-3xl font-extrabold text-center text-gray-900 mb-6">Supabase CRUD App</h1>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 font-inter">
+      <div className="container mx-auto p-4">
+        <h1 className="text-4xl md:text-5xl font-bold text-center mb-12">Task Tracker</h1>
 
-        {/* Tab navigation */}
-        <div className="flex justify-center border-b border-gray-200 mb-6">
-          <button
-            onClick={() => setActiveTab('employees')}
-            className={`py-2 px-4 text-sm font-medium ${activeTab === 'employees' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            Employees
-          </button>
-          <button
-            onClick={() => setActiveTab('customers')}
-            className={`py-2 px-4 text-sm font-medium ${activeTab === 'customers' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            Customers
-          </button>
-          <button
-            onClick={() => setActiveTab('tasks')}
-            className={`py-2 px-4 text-sm font-medium ${activeTab === 'tasks' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            Tasks
-          </button>
-        </div>
+        {loading && <p className="text-center text-lg text-blue-500">Loading data...</p>}
+        {error && <p className="text-center text-lg text-red-500">{error}</p>}
 
-        {/* Form and list sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">{isEditMode ? 'Edit' : 'Add New'} {activeTab.slice(0, -1)}</h2>
-            {renderForm()}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Employee Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 flex flex-col">
+            <h2 className="text-2xl font-semibold mb-4 text-center">Employees</h2>
+            <form onSubmit={handleAddEmployee} className="flex gap-2 mb-6">
+              <input
+                type="text"
+                value={newEmployeeName}
+                onChange={(e) => setNewEmployeeName(e.target.value)}
+                placeholder="New Employee Name"
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              />
+              <button
+                type="submit"
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition-colors"
+              >
+                Add
+              </button>
+            </form>
+            <ul className="space-y-4 overflow-y-auto flex-grow">
+              {employees.length === 0 ? (
+                <p className="text-center text-gray-500 dark:text-gray-400">No employees yet.</p>
+              ) : (
+                employees.map((employee) => (
+                  <li key={employee.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-sm">
+                    <span className="text-lg">{employee.name}</span>
+                    <button
+                      onClick={() => handleDeleteEmployee(employee.id)}
+                      className="text-red-500 hover:text-red-600 transition-colors"
+                      aria-label="Delete employee"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
           </div>
-          <div>
-            {activeTab === 'employees' && renderList(employees)}
-            {activeTab === 'customers' && renderList(customers)}
-            {activeTab === 'tasks' && renderList(tasks)}
+
+          {/* Task Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 flex flex-col">
+            <h2 className="text-2xl font-semibold mb-4 text-center">Tasks</h2>
+            <form onSubmit={handleAddTask} className="flex gap-2 mb-6">
+              <input
+                type="text"
+                value={newTaskDescription}
+                onChange={(e) => setNewTaskDescription(e.target.value)}
+                placeholder="New Task Description"
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+              />
+              <button
+                type="submit"
+                className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl shadow-md transition-colors"
+              >
+                Add
+              </button>
+            </form>
+            <ul className="space-y-4 overflow-y-auto flex-grow">
+              {tasks.length === 0 ? (
+                <p className="text-center text-gray-500 dark:text-gray-400">No tasks yet.</p>
+              ) : (
+                tasks.map((task) => (
+                  <li key={task.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-sm">
+                    <span className="text-lg">{task.description}</span>
+                    <button
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="text-red-500 hover:text-red-600 transition-colors"
+                      aria-label="Delete task"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+
+          {/* Customer Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 flex flex-col">
+            <h2 className="text-2xl font-semibold mb-4 text-center">Customers</h2>
+            <form onSubmit={handleAddCustomer} className="flex gap-2 mb-6">
+              <input
+                type="text"
+                value={newCustomerName}
+                onChange={(e) => setNewCustomerName(e.target.value)}
+                placeholder="New Customer Name"
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+              />
+              <button
+                type="submit"
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-md transition-colors"
+              >
+                Add
+              </button>
+            </form>
+            <ul className="space-y-4 overflow-y-auto flex-grow">
+              {customers.length === 0 ? (
+                <p className="text-center text-gray-500 dark:text-gray-400">No customers yet.</p>
+              ) : (
+                customers.map((customer) => (
+                  <li key={customer.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-sm">
+                    <span className="text-lg">{customer.name}</span>
+                    <button
+                      onClick={() => handleDeleteCustomer(customer.id)}
+                      className="text-red-500 hover:text-red-600 transition-colors"
+                      aria-label="Delete customer"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-export default App;
