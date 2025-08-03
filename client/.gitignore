@@ -1,0 +1,12 @@
+# Ignore dependencies
+/node_modules
+
+# Ignore build output
+/dist
+
+# Ignore local environment variables
+# IMPORTANT: This prevents your Supabase keys from being pushed to GitHub
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
