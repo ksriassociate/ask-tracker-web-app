@@ -1,109 +1,27 @@
-@tailwind css;
+/* C:\Users\DELL\Desktop\Task\TaskTracker\TaskTracker\client\src\index.css */
 
+/* Add the standard Tailwind directives at the top */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: hsl(0, 0%, 100%);
-  --foreground: hsl(20, 14.3%, 4.1%);
-  --muted: hsl(60, 4.8%, 95.9%);
-  --muted-foreground: hsl(25, 5.3%, 44.7%);
-  --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(20, 14.3%, 4.1%);
-  --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(20, 14.3%, 4.1%);
-  --border: hsl(20, 5.9%, 90%);
-  --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(217, 91%, 60%);
-  --primary-foreground: hsl(210, 40%, 98%);
-  --secondary: hsl(60, 4.8%, 95.9%);
-  --secondary-foreground: hsl(24, 9.8%, 10%);
-  --accent: hsl(60, 4.8%, 95.9%);
-  --accent-foreground: hsl(24, 9.8%, 10%);
-  --destructive: hsl(0, 84.2%, 60.2%);
-  --destructive-foreground: hsl(60, 9.1%, 97.8%);
-  --success: hsl(142, 76%, 36%);
-  --success-foreground: hsl(355, 7%, 97%);
-  --warning: hsl(38, 92%, 50%);
-  --warning-foreground: hsl(48, 96%, 89%);
-  --ring: hsl(20, 14.3%, 4.1%);
-  --radius: 0.5rem;
+/*
+  Add global styles for the body.
+  - We're setting a default text color for the entire page.
+  - `antialiased` is a useful utility for smoother font rendering.
+  - The `font-sans` class ensures a good, readable sans-serif font stack.
+  - `bg-gray-100` could be a default background, but your App.tsx already sets it.
+    It's good practice to set a base text color here.
+*/
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  -webkit-font-smoothing: antialiased; /* For smoother font rendering on WebKit browsers */
+  -moz-osx-font-smoothing: grayscale; /* For smoother font rendering on Firefox */
+  color: #333; /* A slightly darker gray for better readability on light backgrounds */
+  line-height: 1.5; /* Good default line spacing */
 }
 
-.dark {
-  --background: hsl(240, 10%, 3.9%);
-  --foreground: hsl(0, 0%, 98%);
-  --muted: hsl(240, 3.7%, 15.9%);
-  --muted-foreground: hsl(240, 5%, 64.9%);
-  --popover: hsl(240, 10%, 3.9%);
-  --popover-foreground: hsl(0, 0%, 98%);
-  --card: hsl(240, 10%, 3.9%);
-  --card-foreground: hsl(0, 0%, 98%);
-  --border: hsl(240, 3.7%, 15.9%);
-  --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(217, 91%, 60%);
-  --primary-foreground: hsl(210, 40%, 98%);
-  --secondary: hsl(240, 3.7%, 15.9%);
-  --secondary-foreground: hsl(0, 0%, 98%);
-  --accent: hsl(240, 3.7%, 15.9%);
-  --accent-foreground: hsl(0, 0%, 98%);
-  --destructive: hsl(0, 62.8%, 30.6%);
-  --destructive-foreground: hsl(0, 0%, 98%);
-  --success: hsl(142, 76%, 36%);
-  --success-foreground: hsl(355, 7%, 97%);
-  --warning: hsl(38, 92%, 50%);
-  --warning-foreground: hsl(48, 96%, 89%);
-  --ring: hsl(240, 4.9%, 83.9%);
-  --radius: 0.5rem;
-}
-
-/* @layer base should now define only non-Tailwind CSS properties or use @apply only for *custom* utilities you define elsewhere */
-@layer base {
-  * {
-    /* No @apply needed here. */
-  }
-
-  body {
-    /* REMOVED: @apply font-sans antialiased bg-background text-foreground; */
-    font-family: 'Inter', sans-serif;
-  }
-}
-
-/* @layer utilities should now define *your own custom* utility classes */
-@layer utilities {
-  .status-badge {
-    /* These @apply directives use core Tailwind utilities and will cause an error in v4 if not referenced */
-    /* REMOVE ALL @APPLY LINES BELOW AND APPLY DIRECTLY IN JSX/HTML */
-    /* @apply text-xs font-medium px-3 py-1 rounded-full uppercase tracking-wide; */
-  }
-  
-  .status-pending {
-    /* @apply bg-gray-100 text-gray-700; */
-  }
-  
-  .status-in_progress {
-    /* @apply bg-yellow-100 text-yellow-800; */
-  }
-  
-  .status-completed {
-    /* @apply bg-green-100 text-green-800; */
-  }
-  
-  .status-overdue {
-    /* @apply bg-red-100 text-red-800; */
-  }
-  
-  .priority-low {
-    /* @apply text-green-600; */
-  }
-  
-  .priority-medium {
-    /* @apply text-yellow-600; */
-  }
-  
-  .priority-high {
-    /* @apply text-orange-600; */
-  }
-  
-  .priority-urgent {
-    /* @apply text-red-600; */
-  }
+/* You can also add more specific defaults if you like, e.g., for headings */
+h1, h2, h3, h4, h5, h6 {
+  color: #222; /* Slightly darker than body text for headings */
 }

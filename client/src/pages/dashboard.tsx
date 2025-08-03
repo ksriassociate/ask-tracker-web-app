@@ -1,89 +1,69 @@
-// This component displays the main dashboard with key statistics
-// and a summary of recent tasks and upcoming deadlines.
-
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import {
-  Users,
-  ClipboardList,
-  AlertTriangle,
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { 
+  Users, 
+  ClipboardList, 
+  AlertTriangle, 
   PieChart,
+  TrendingUp,
+  Calendar,
   Clock,
-  CheckCircle,
-} from 'lucide-react';
-import { format, isAfter, differenceInDays } from 'date-fns';
-import { cn } from '@/lib/utils';
-import type { Task, Employee, DashboardStats } from './shared-types';
+  CheckCircle
+} from "lucide-react";
+import { format, isAfter, differenceInDays } from "date-fns";
+import type { Task, Employee } from "@shared/schema";
 
-// --- SHARED TYPES ---
-// These types would be in a shared file in a real project.
-export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'overdue';
-export type TaskPriority = 'low' | 'medium' | 'high';
-
-export interface Task {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  priority: TaskPriority;
-  status: TaskStatus;
-  assignedTo: string; // Employee ID
-  customer: string; // Customer ID
-}
-
-export interface Employee {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  department: string;
-}
-
-export interface DashboardStats {
+interface DashboardStats {
   totalEmployees: number;
   activeTasks: number;
   overdueTasks: number;
   completionRate: number;
 }
-// --- END SHARED TYPES ---
+
+const getTaskStatusColor = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'bg-green-100 text-green-800';
+    case 'in_progress':
+      return 'bg-blue-100 text-blue-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getDeadlineColor = (dueDate: Date, status: string) => {
+  if (status === 'completed') {
+    return 'border-green-500';
+  }
+  return isAfter(new Date(), dueDate) ? 'border-red-500' : 'border-blue-500';
+};
+
+const getDeadlineIcon = (dueDate: Date, status: string) => {
+  if (status === 'completed') {
+    return <CheckCircle className="w-6 h-6 text-green-500" />;
+  }
+  return isAfter(new Date(), dueDate) ? (
+    <AlertTriangle className="w-6 h-6 text-red-500" />
+  ) : (
+    <Clock className="w-6 h-6 text-blue-500" />
+  );
+};
 
 export default function Dashboard() {
-  // Mock API calls using React Query
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ['/api/stats'],
-    queryFn: async () => ({
-      totalEmployees: 5,
-      activeTasks: 12,
-      overdueTasks: 3,
-      completionRate: 65,
-    }),
+    queryKey: ["/api/stats"],
   });
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
-    queryKey: ['/api/tasks'],
-    queryFn: async () => [
-      { id: '1', title: 'Website Redesign', description: 'Redesign the company website with a modern look and feel.', dueDate: '2025-08-10', priority: 'high', status: 'in_progress', assignedTo: 'emp1', customer: 'cust1' },
-      { id: '2', title: 'Database Migration', description: 'Migrate the old database to a new cloud-based solution.', dueDate: '2025-08-01', priority: 'high', status: 'overdue', assignedTo: 'emp2', customer: 'cust2' },
-      { id: '3', title: 'Mobile App Bug Fixes', description: 'Fix reported bugs in the mobile application.', dueDate: '2025-08-25', priority: 'medium', status: 'pending', assignedTo: 'emp1', customer: 'cust1' },
-      { id: '4', title: 'New Feature Implementation', description: 'Implement a new user authentication feature.', dueDate: '2025-07-20', priority: 'high', status: 'completed', assignedTo: 'emp3', customer: 'cust3' },
-    ],
+    queryKey: ["/api/tasks"],
   });
 
   const { data: employees = [], isLoading: employeesLoading } = useQuery<Employee[]>({
-    queryKey: ['/api/employees'],
-    queryFn: async () => [
-      { id: 'emp1', name: 'Alice Johnson', email: 'alice.j@example.com', phone: '123-456-7890', department: 'Engineering' },
-      { id: 'emp2', name: 'Bob Smith', email: 'bob.s@example.com', phone: '098-765-4321', department: 'Marketing' },
-      { id: 'emp3', name: 'Charlie Brown', email: 'charlie.b@example.com', phone: '111-222-3333', department: 'Sales' },
-    ],
+    queryKey: ["/api/employees"],
   });
 
   const recentTasks = tasks.slice(0, 4);
@@ -92,117 +72,110 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
     .slice(0, 4);
 
-  const getTaskStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getDeadlineColor = (dueDate: Date, status: string) => {
-    if (status === 'completed') return 'border-green-500';
-    if (isAfter(new Date(), dueDate)) return 'border-red-500';
-    return 'border-blue-500';
-  };
-
-  const getDeadlineIcon = (dueDate: Date, status: string) => {
-    if (status === 'completed') return <CheckCircle className="h-5 w-5 text-green-500" />;
-    if (isAfter(new Date(), dueDate)) return <AlertTriangle className="h-5 w-5 text-red-500" />;
-    return <Clock className="h-5 w-5 text-blue-500" />;
-  };
-
-  const getEmployee = (id: string) => employees.find(emp => emp.id === id);
-
   if (statsLoading || tasksLoading || employeesLoading) {
     return <div className="p-6">Loading dashboard...</div>;
   }
 
+  const completionRate = stats?.completionRate ?? 0;
+  const overdueTasksCount = stats?.overdueTasks ?? 0;
+  const activeTasksCount = stats?.activeTasks ?? 0;
+  const totalEmployees = stats?.totalEmployees ?? 0;
+
   return (
     <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {/* Stats Cards */}
-      <Card data-testid="card-employees">
+      <Card data-testid="stats-card-employees">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
+          <Users className="h-4 w-4 text-gray-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats?.totalEmployees}</div>
+          <div className="text-2xl font-bold">{totalEmployees}</div>
         </CardContent>
       </Card>
-      <Card data-testid="card-active-tasks">
+      
+      <Card data-testid="stats-card-active">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
-          <ClipboardList className="h-4 w-4 text-muted-foreground" />
+          <ClipboardList className="h-4 w-4 text-gray-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats?.activeTasks}</div>
+          <div className="text-2xl font-bold">{activeTasksCount}</div>
         </CardContent>
       </Card>
-      <Card data-testid="card-overdue-tasks">
+      
+      <Card data-testid="stats-card-overdue">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Overdue Tasks</CardTitle>
-          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          <AlertTriangle className="h-4 w-4 text-red-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats?.overdueTasks}</div>
+          <div className="text-2xl font-bold">{overdueTasksCount}</div>
         </CardContent>
       </Card>
-      <Card data-testid="card-completion-rate">
+
+      <Card data-testid="stats-card-completion">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-          <PieChart className="h-4 w-4 text-muted-foreground" />
+          <TrendingUp className="h-4 w-4 text-gray-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats?.completionRate}%</div>
-          <Progress value={stats?.completionRate} className="mt-2 h-2" />
+          <div className="text-2xl font-bold">{completionRate}%</div>
+          <Progress value={completionRate} className="h-2 mt-2" />
         </CardContent>
       </Card>
 
       {/* Recent Tasks */}
-      <Card className="col-span-1 lg:col-span-2" data-testid="card-recent-tasks">
+      <Card className="col-span-1 md:col-span-2 lg:col-span-2" data-testid="card-recent-tasks">
         <CardHeader>
           <CardTitle>Recent Tasks</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentTasks.length === 0 ? (
-              <p className="text-muted-foreground">No recent tasks found.</p>
-            ) : (
-              recentTasks.map(task => (
-                <div key={task.id} className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">{task.title}</h4>
-                    <Badge className={getTaskStatusColor(task.status)}>
-                      {task.status.replace(/_/g, ' ')}
-                    </Badge>
+          {recentTasks.length === 0 ? (
+            <p className="text-gray-500">No recent tasks found.</p>
+          ) : (
+            <div className="space-y-4">
+              {recentTasks.map(task => {
+                const employee = employees.find(emp => emp.id === task.assignedTo);
+                const dueDate = new Date(task.dueDate);
+
+                return (
+                  <div key={task.id} className="p-4 rounded-lg border">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-gray-900 truncate">{task.title}</h4>
+                      <Badge className={getTaskStatusColor(task.status)}>
+                        {task.status.replace(/_/g, ' ')}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{employee?.name || 'Unknown Employee'}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Due: {format(dueDate, 'PPP')}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{getEmployee(task.assignedTo)?.name || 'Unknown Employee'}</p>
-                </div>
-              ))
-            )}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Upcoming Deadlines */}
-      <Card className="col-span-1 lg:col-span-2" data-testid="card-upcoming-deadlines">
+      <Card className="col-span-1 md:col-span-2 lg:col-span-2" data-testid="card-upcoming-deadlines">
         <CardHeader>
           <CardTitle>Upcoming Deadlines</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {upcomingDeadlines.length === 0 ? (
-              <p className="text-muted-foreground">No upcoming deadlines.</p>
-            ) : (
-              upcomingDeadlines.map(task => {
+          {upcomingDeadlines.length === 0 ? (
+            <p className="text-gray-500">No upcoming deadlines.</p>
+          ) : (
+            <div className="space-y-4">
+              {upcomingDeadlines.map(task => {
+                const employee = employees.find(emp => emp.id === task.assignedTo);
                 const dueDate = new Date(task.dueDate);
-                const employee = getEmployee(task.assignedTo);
+
                 return (
-                  <div
-                    key={task.id}
+                  <div 
+                    key={task.id} 
                     className={`p-4 rounded-lg border-l-4 ${getDeadlineColor(dueDate, task.status)}`}
                     data-testid={`deadline-item-${task.id}`}
                   >
@@ -226,9 +199,9 @@ export default function Dashboard() {
                     </div>
                   </div>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

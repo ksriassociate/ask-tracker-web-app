@@ -2,8 +2,7 @@
 
 export default {
   plugins: {
-    // Use the new dedicated PostCSS plugin for Tailwind CSS v4
-    '@tailwindcss/postcss': {}, // <--- UPDATED LINE
+    '@tailwindcss/postcss': {},
     autoprefixer: {},
   },
 };
