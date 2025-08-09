@@ -1,173 +1,148 @@
-// client/src/components/TaskForm.tsx
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient'; // Adjust path if needed
+// Updated TaskForm.tsx to match Supabase schema
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabaseClient";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 
-// Define simple TypeScript interfaces for better type safety (optional but good practice)
-interface Employee {
-  id: number; // Use 'string' if your IDs are UUIDs
-  full_name: string;
-}
+const taskSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  due_date: z.string().optional(),
+  priority: z.enum(["Low", "Medium", "High", "Urgent"]),
+  status: z.enum(["To Do", "In Progress", "Done"]),
+  assign_to_employee: z.string(),
+  assign_to_customer: z.string().optional(),
+});
 
-interface Customer {
-  id: number; // Use 'string' if your Supabase IDs are UUIDs
-  company_name: string;
-  contact_person: string;
-}
+type TaskForm = z.infer<typeof taskSchema>;
 
-function TaskForm() {
-  const [taskTitle, setTaskTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [priority, setPriority] = useState('Medium');
-  const [status, setStatus] = useState('To Do'); // Initial status for new tasks
+export default function TaskFormComponent() {
+  const { data: employees = [] } = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => {
+      const { data } = await supabase.from("employees").select("id, full_name");
+      return data ?? [];
+    },
+  });
 
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [assignedToEmployeeId, setAssignedToEmployeeId] = useState<number | null>(null); // State for selected Employee ID
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null); // State for selected Customer ID
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => {
+      const { data } = await supabase.from("customers").select("id, company_name");
+      return data ?? [];
+    },
+  });
 
-  // useEffect to fetch data when the component mounts
-  useEffect(() => {
-    async function fetchData() {
-      // Fetch Employees
-      const { data: employeesData, error: employeesError } = await supabase
-        .from('employees') // Your Supabase table name
-        .select('id, full_name'); // Select only the columns you need for the dropdown
+  const form = useForm<TaskForm>({
+    resolver: zodResolver(taskSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      due_date: "",
+      priority: "Medium",
+      status: "To Do",
+      assign_to_employee: "",
+      assign_to_customer: "",
+    },
+  });
 
-      if (employeesError) {
-        console.error('Error fetching employees:', employeesError.message);
-      } else {
-        setEmployees(employeesData || []);
-      }
-
-      // Fetch Customers
-      const { data: customersData, error: customersError } = await supabase
-        .from('customers') // Your Supabase table name
-        .select('id, company_name, contact_person'); // Select relevant columns
-
-      if (customersError) {
-        console.error('Error fetching customers:', customersError.message);
-      } else {
-        setCustomers(customersData || []);
-      }
-    }
-
-    fetchData();
-  }, []); // Empty dependency array means this effect runs once after the initial render
-
-  // --- Task Submission Logic ---
-  const handleAddTask = async (event: React.FormEvent) => {
-    event.preventDefault(); // Prevent default browser form submission
-
-    if (!taskTitle.trim()) {
-      alert('Task Title is required!');
-      return;
-    }
-
-    // Prepare the data to insert
-    const newTask = {
-      title: taskTitle,
-      description: description || null, // Set to null if empty string for optional fields
-      due_date: dueDate || null,
-      priority: priority,
-      status: status,
-      assigned_to_employee_id: assignedToEmployeeId, // This will be null if nothing selected in dropdown
-      customer_id: selectedCustomerId // This will be null if nothing selected in dropdown
-    };
-
-    const { data, error } = await supabase
-      .from('tasks') // Your 'tasks' table name
-      .insert([newTask])
-      .select(); // Use .select() to get the inserted row data back (useful for immediate UI updates)
-
-    if (error) {
-      console.error('Error adding task:', error.message);
-      alert('Failed to add task: ' + error.message);
-    } else {
-      console.log('Task added successfully:', data);
-      alert('Task added successfully!');
-      // Reset form fields after successful submission
-      setTaskTitle('');
-      setDescription('');
-      setDueDate('');
-      setPriority('Medium');
-      setStatus('To Do');
-      setAssignedToEmployeeId(null);
-      setSelectedCustomerId(null);
-      // Optional: If you have a list of tasks displayed, you might re-fetch them here
-    }
-  };
+  const mutation = useMutation({
+    mutationFn: async (data: TaskForm) => {
+      const { error } = await supabase.from("tasks").insert([data]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      form.reset();
+    },
+  });
 
   return (
-    <form onSubmit={handleAddTask}>
-      <h2>Add New Task</h2>
-      <label>
-        Task Title:
-        <input type="text" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} required />
-      </label>
-      <br/>
-      <label>
-        Description:
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)}></textarea>
-      </label>
-      <br/>
-      <label>
-        Due Date:
-        <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-      </label>
-      <br/>
-      <label>
-        Priority:
-        <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-          <option value="Low">Low</option>
-          <option value="Medium">Medium</option>
-          <option value="High">High</option>
-          <option value="Urgent">Urgent</option>
-        </select>
-      </label>
-      <br/>
-      <label>
-        Status:
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="To Do">To Do</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Done">Done</option>
-        </select>
-      </label>
-      <br/>
-      <label>
-        Assign to Employee:
-        <select
-          value={assignedToEmployeeId === null ? '' : assignedToEmployeeId}
-          onChange={(e) => setAssignedToEmployeeId(e.target.value ? Number(e.target.value) : null)} // Convert to Number if ID is int8
-        >
-          <option value="">Select Employee</option>
-          {employees.map((emp) => (
-            <option key={emp.id} value={emp.id}>
-              {emp.full_name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <br/>
-      <label>
-        Customer (Optional):
-        <select
-          value={selectedCustomerId === null ? '' : selectedCustomerId}
-          onChange={(e) => setSelectedCustomerId(e.target.value ? Number(e.target.value) : null)} // Convert to Number if ID is int8
-        >
-          <option value="">Select Customer</option>
-          {customers.map((cust) => (
-            <option key={cust.id} value={cust.id}>
-              {cust.company_name} ({cust.contact_person})
-            </option>
-          ))}
-        </select>
-      </label>
-      <br/>
-      <button type="submit">Add Task</button>
-    </form>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
+        <FormField name="title" control={form.control} render={({ field }) => (
+          <FormItem>
+            <FormLabel>Title</FormLabel>
+            <FormControl><Input {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+
+        <FormField name="description" control={form.control} render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl><Input {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+
+        <FormField name="due_date" control={form.control} render={({ field }) => (
+          <FormItem>
+            <FormLabel>Due Date</FormLabel>
+            <FormControl><Input type="date" {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+
+        <FormField name="priority" control={form.control} render={({ field }) => (
+          <FormItem>
+            <FormLabel>Priority</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+              <SelectContent>
+                {["Low", "Medium", "High", "Urgent"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )} />
+
+        <FormField name="status" control={form.control} render={({ field }) => (
+          <FormItem>
+            <FormLabel>Status</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+              <SelectContent>
+                {["To Do", "In Progress", "Done"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )} />
+
+        <FormField name="assign_to_employee" control={form.control} render={({ field }) => (
+          <FormItem>
+            <FormLabel>Assign to Employee</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl><SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger></FormControl>
+              <SelectContent>
+                {employees.map(e => <SelectItem key={e.id} value={String(e.id)}>{e.full_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )} />
+
+        <FormField name="assign_to_customer" control={form.control} render={({ field }) => (
+          <FormItem>
+            <FormLabel>Assign to Customer</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl><SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger></FormControl>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )} />
+
+        <Button type="submit" disabled={mutation.isPending}>Create Task</Button>
+      </form>
+    </Form>
   );
 }
-
-export default TaskForm;

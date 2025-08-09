@@ -1,23 +1,43 @@
-// C:\Users\DELL\Desktop\Task\TaskTracker\TaskTracker\client\tailwind.config.js
+import type { Config } from "tailwindcss";
 
-/** @type {import('tailwindcss').Config} */
-export default {
-  // Enables dark mode based on the presence of a 'dark' class on an ancestor element (e.g., <html>)
-  darkMode: ["class"],
-
-  // Crucial: This array tells Tailwind where to scan for your utility classes.
-  // Paths are relative to the location of this tailwind.config.ts file.
+const config: Config = {
+  // These paths tell Tailwind CSS which files to scan for utility classes.
+  // Tailwind will generate CSS only for the classes it finds in these files.
   content: [
-    "./index.html", // Scans your main HTML file (if it's in the same directory as this config)
-    "./src/**/*.{js,jsx,ts,tsx}", // Scans files directly within the 'src' directory (e.g., App.tsx, main.tsx)
+    "./index.html",
+    // This line is crucial for React projects, ensuring Tailwind scans all your JSX/TSX files.
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
-
+  // The safelist ensures that specific utility classes are always included in the
+  // generated CSS, even if Tailwind's scanner doesn't detect them (e.g., if
+  // they're generated dynamically or conditionally).
+  safelist: [
+    "bg-primary",
+    "text-primary",
+    "font-sans",
+  ],
   theme: {
+    // The extend property allows you to add to Tailwind's default theme
+    // without overwriting it entirely.
     extend: {
-      // No custom borderRadius or colors are needed for the provided App.tsx code
-      // If you plan to integrate Shadcn/ui fully later, you'll re-add these.
+      // Custom color palette for your application.
+      colors: {
+        primary: "#3b82f6", // A vibrant blue for primary actions and highlights.
+        secondary: "#6b7280", // A neutral gray for secondary elements.
+        accent: "#8b5cf6", // A rich purple for accents.
+        muted: "#f3f4f6", // A light gray for subtle backgrounds or borders.
+        // Removed 'background' and 'foreground' custom colors here.
+        // These were referencing undefined CSS variables ('--color-bg', '--color-text'),
+        // which was likely causing the "no color" issue if those variables weren't
+        // defined elsewhere. The application now uses direct Tailwind color classes.
+      },
     },
   },
-  // Ensure no old plugins like 'tailwindcss-animate' or '@tailwindcss/typography' are here
+  // 'class' mode for dark mode, allowing you to toggle dark mode
+  // by adding/removing a 'dark' class on your HTML element.
+  darkMode: "class",
+  // Plugins for additional Tailwind functionalities.
   plugins: [],
 };
+
+export default config;

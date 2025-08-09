@@ -1,22 +1,11 @@
+/* src/styles.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Define your custom CSS variables here */
 :root {
-  /* Light theme */
-  --color-bg: #ffffff;
-  --color-text: #1f2937;
-  --sidebar-border: #e5e7eb;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Dark theme */
-    --color-bg: #111827;
-    --color-text: #f9fafb;
-    --sidebar-border: #374151;
-  }
-}
-
-body {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  --color-bg: #f8f8f8; /* Example light background color */
+  --color-text: #333333; /* Example dark text color */
 }

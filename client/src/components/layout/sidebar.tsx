@@ -1,13 +1,14 @@
+// ✅ Fixed Sidebar Component (sidebar.tsx)
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Users, 
-  ClipboardList, 
-  Building, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  Building,
+  BarChart3,
   Settings,
-  CheckSquare
+  CheckSquare,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -29,23 +30,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
-      
-      {/* Sidebar */}
-      <aside 
+
+      <aside
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg border-r border-gray-200 flex flex-col transition-transform duration-300 ease-in-out",
-          isOpen ? "transform-none" : "-translate-x-full lg:translate-x-0"
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         data-testid="sidebar"
       >
-        {/* Logo Header */}
+        {/* Logo */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
@@ -58,21 +57,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         </div>
 
-        {/* Navigation Menu */}
+        {/* Navigation */}
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
             {navigation.map((item) => {
               const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
               const Icon = item.icon;
-              
               return (
                 <li key={item.name}>
-                  <Link 
+                  <Link
                     href={item.href}
                     className={cn(
                       "flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors",
-                      isActive 
-                        ? "bg-primary text-white" 
+                      isActive
+                        ? "bg-primary text-white"
                         : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                     )}
                     onClick={onClose}
@@ -87,7 +85,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </ul>
         </nav>
 
-        {/* User Profile */}
+        {/* User Footer */}
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">

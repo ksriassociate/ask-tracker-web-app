@@ -1,7 +1,7 @@
 import './styles.css';
 import React, { useState, useEffect } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Home, Users, Briefcase, FileText, Menu, X, Plus, Clock, ChevronUp, ChevronDown, Trash2, Edit } from 'lucide-react';
+import { Home, Users, Briefcase, FileText, Menu, X, Plus, ChevronUp, ChevronDown, Trash2, Edit } from 'lucide-react';
 
 // Assuming these types are defined in a separate file or at the top of this file
 interface Employee {
@@ -27,10 +27,12 @@ interface Task {
   description: string;
   due_date: string;
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
-  assigned_to_employee_id?: number;
-  assigned_to_customer_id?: number;
-  employees?: Employee; // Supabase joins
-  customers?: Customer; // Supabase joins
+  // Corrected column names to match the database schema as per user feedback
+  assign_to_employee?: number;
+  assign_to_customer?: number;
+  // Corrected types for employees and customers to match Supabase's return structure as arrays
+  employees?: { full_name: string }[]; // Changed to array
+  customers?: { company_name: string }[]; // Changed to array
 }
 
 interface NavLinkProps {
@@ -106,7 +108,7 @@ const NavLink: React.FC<NavLinkProps> = ({ icon: Icon, label, isActive, onClick 
     onClick={onClick}
     className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-300 w-full text-left
       ${isActive
-        ? 'bg-[--color-text] text-[--color-bg] shadow-lg'
+        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105'
         : 'text-gray-400 hover:bg-gray-700 hover:text-white'
       }`}
   >
@@ -134,11 +136,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isSideba
         ></div>
       )}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[--color-text] text-[--color-bg] p-4 shadow-xl transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-800 text-white p-4 shadow-xl transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           } transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0`}
       >
-        <div className="flex items-center justify-between border-b border-[--sidebar-border] pb-4 mb-6">
-          <h2 className="text-2xl font-bold text-blue-400">TaskTracker</h2>
+        <div className="flex items-center justify-between border-b border-gray-700 pb-4 mb-6">
+          <h2 className="text-2xl font-bold text-purple-400">TaskTracker</h2>
           <button
             onClick={() => setIsSidebarOpen(false)}
             className="text-gray-400 hover:text-white lg:hidden"
@@ -167,15 +169,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isSideba
 
 // Generic Modal component
 const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 backdrop-blur-sm">
-    <div className="bg-[--color-bg] rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 transform scale-95 transition-transform duration-200">
-      <div className="flex justify-between items-center border-b pb-3 mb-4">
-        <h3 className="text-xl font-semibold text-[--color-text]">{title}</h3>
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75 backdrop-blur-sm">
+    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 transform scale-95 transition-transform duration-200">
+      <div className="flex justify-between items-center border-b border-gray-200 pb-3 mb-4">
+        <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
           <X className="h-6 w-6" />
         </button>
       </div>
-      <div className="py-2">{children}</div>
+      {/* Added max-h and overflow-y-auto for modal content scrolling */}
+      <div className="py-2 max-h-[70vh] overflow-y-auto">{children}</div>
     </div>
   </div>
 );
@@ -207,7 +210,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, title, me
 // Reusable Form Input
 const FormInput: React.FC<FormInputProps> = ({ label, id, name, type = 'text', value, onChange, placeholder, required = false }) => (
   <div>
-    <label htmlFor={id} className="block text-sm font-medium text-[--color-text]">
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
     <input
@@ -218,7 +221,7 @@ const FormInput: React.FC<FormInputProps> = ({ label, id, name, type = 'text', v
       onChange={onChange}
       placeholder={placeholder}
       required={required}
-      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border transition-colors"
+      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border transition-colors text-gray-900"
     />
   </div>
 );
@@ -226,7 +229,7 @@ const FormInput: React.FC<FormInputProps> = ({ label, id, name, type = 'text', v
 // Reusable Form Select
 const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChange, options, required = false }) => (
   <div>
-    <label htmlFor={id} className="block text-sm font-medium text-[--color-text]">
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
     <select
@@ -235,7 +238,7 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChang
       value={value}
       onChange={onChange}
       required={required}
-      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border transition-colors"
+      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border transition-colors text-gray-900"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -249,9 +252,9 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChang
 // Status Badge component
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const statusColors = {
-    'To Do': 'bg-gray-200 text-gray-800',
-    'In Progress': 'bg-blue-200 text-blue-800',
-    'Completed': 'bg-green-200 text-green-800',
+    'To Do': 'bg-blue-100 text-blue-800',
+    'In Progress': 'bg-yellow-100 text-yellow-800',
+    'Completed': 'bg-green-100 text-green-800',
   };
 
   return (
@@ -264,17 +267,17 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
 // Priority Badge component
 const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
   const priorityColors = {
-    'Low': 'text-green-600',
-    'Medium': 'text-yellow-600',
-    'High': 'text-orange-600',
-    'Urgent': 'text-red-600',
+    'Low': 'text-green-500',
+    'Medium': 'text-yellow-500',
+    'High': 'text-orange-500',
+    'Urgent': 'text-red-500',
   };
 
   const icon = {
     'Low': <ChevronDown className="h-4 w-4 mr-1" />,
-    'Medium': <ChevronDown className="h-4 w-4 mr-1" />,
+    'Medium': <></>, // No specific icon for medium, or choose a neutral one
     'High': <ChevronUp className="h-4 w-4 mr-1" />,
-    'Urgent': <ChevronUp className="h-4 w-4 mr-1" />,
+    'Urgent': <ChevronUp className="h-4 w-4 mr-1 rotate-180" />, // Can rotate for more urgency
   };
 
   return (
@@ -286,7 +289,7 @@ const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
 };
 
 const PageContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="p-6 bg-[--color-bg] rounded-2xl shadow-md min-h-[calc(100vh-120px)]">
+  <div className="p-6 bg-white rounded-2xl shadow-lg min-h-[calc(100vh-120px)]">
     {children}
   </div>
 );
@@ -315,9 +318,9 @@ const DashboardPage: React.FC = () => {
   }, []);
 
   const Card: React.FC<{ title: string; count: number | null; icon: React.ElementType }> = ({ title, count, icon: Icon }) => (
-    <div className="bg-[--color-bg] p-6 rounded-xl shadow-inner flex items-center justify-between transition-transform transform hover:scale-105">
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 p-6 rounded-xl shadow-md flex items-center justify-between transition-transform transform hover:scale-105">
       <div>
-        <h3 className="text-xl font-semibold text-[--color-text]">{title}</h3>
+        <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
         <p className="text-3xl font-bold text-blue-600 mt-2">{count !== null ? count : '-'}</p>
       </div>
       <Icon className="h-10 w-10 text-gray-400" />
@@ -326,7 +329,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <h1 className="text-3xl font-bold text-[--color-text] mb-6">Dashboard</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">Dashboard</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card title="Total Employees" count={counts?.employees ?? null} icon={Users} />
         <Card title="Total Customers" count={counts?.customers ?? null} icon={Briefcase} />
@@ -367,8 +370,9 @@ const EmployeesPage: React.FC = () => {
         // Update employee
         await supabase.from('employees').update(currentEmployee).eq('id', currentEmployee.id);
       } else {
-        // Add new employee
-        await supabase.from('employees').insert([currentEmployee]);
+        // Add new employee: Omit id to let Supabase auto-generate
+        const { id, ...newEmployeeWithoutId } = currentEmployee; // Destructure to exclude id
+        await supabase.from('employees').insert([newEmployeeWithoutId]);
       }
       fetchEmployees();
       setIsModalOpen(false);
@@ -389,7 +393,8 @@ const EmployeesPage: React.FC = () => {
   };
 
   const openAddModal = () => {
-    setCurrentEmployee({ id: 0, full_name: '', email: '', position: '', department: '' });
+    // For a new employee, do not set the ID. Let Supabase auto-generate.
+    setCurrentEmployee({ full_name: '', email: '', position: '', department: '' } as Employee);
     setIsModalOpen(true);
   };
 
@@ -406,14 +411,14 @@ const EmployeesPage: React.FC = () => {
   return (
     <PageContainer>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-[--color-text]">Employees</h1>
-        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-full shadow-md hover:bg-blue-700 transition-colors">
+        <h1 className="text-3xl font-bold text-gray-800">Employees</h1>
+        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
           <Plus className="h-5 w-5 mr-2" />
           Add Employee
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl shadow">
+      <div className="overflow-x-auto rounded-xl shadow-lg">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -424,13 +429,13 @@ const EmployeesPage: React.FC = () => {
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-[--color-bg] divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-200">
             {employees.map((employee) => (
               <tr key={employee.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[--color-text]">{employee.full_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">{employee.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">{employee.position}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">{employee.department}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{employee.full_name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.position}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.department}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                   <button onClick={() => openEditModal(employee)} className="text-blue-600 hover:text-blue-900">
                     <Edit className="h-5 w-5 inline" />
@@ -484,8 +489,8 @@ const EmployeesPage: React.FC = () => {
               onChange={(e) => setCurrentEmployee({ ...currentEmployee!, department: e.target.value })}
               required
             />
-            <div className="flex justify-end pt-4 border-t">
-              <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+            <div className="flex justify-end pt-4 border-t border-gray-200">
+              <button type="submit" className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
                 Save
               </button>
             </div>
@@ -534,7 +539,9 @@ const CustomersPage: React.FC = () => {
       if (currentCustomer.id) {
         await supabase.from('customers').update(currentCustomer).eq('id', currentCustomer.id);
       } else {
-        await supabase.from('customers').insert([currentCustomer]);
+        // Add new customer: Omit id to let Supabase auto-generate
+        const { id, ...newCustomerWithoutId } = currentCustomer; // Destructure to exclude id
+        await supabase.from('customers').insert([newCustomerWithoutId]);
       }
       fetchCustomers();
       setIsModalOpen(false);
@@ -555,7 +562,8 @@ const CustomersPage: React.FC = () => {
   };
 
   const openAddModal = () => {
-    setCurrentCustomer({ id: 0, company_name: '', contact_person: '', email: '', phone_number: '' });
+    // For a new customer, do not set the ID. Let Supabase auto-generate.
+    setCurrentCustomer({ company_name: '', contact_person: '', email: '', phone_number: '' } as Customer);
     setIsModalOpen(true);
   };
 
@@ -572,14 +580,14 @@ const CustomersPage: React.FC = () => {
   return (
     <PageContainer>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-[--color-text]">Customers</h1>
-        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-full shadow-md hover:bg-blue-700 transition-colors">
+        <h1 className="text-3xl font-bold text-gray-800">Customers</h1>
+        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
           <Plus className="h-5 w-5 mr-2" />
           Add Customer
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl shadow">
+      <div className="overflow-x-auto rounded-xl shadow-lg">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -590,13 +598,13 @@ const CustomersPage: React.FC = () => {
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-[--color-bg] divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-200">
             {customers.map((customer) => (
               <tr key={customer.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[--color-text]">{customer.company_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">{customer.contact_person}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">{customer.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">{customer.phone_number}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.company_name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.contact_person}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.phone_number}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                   <button onClick={() => openEditModal(customer)} className="text-blue-600 hover:text-blue-900">
                     <Edit className="h-5 w-5 inline" />
@@ -649,8 +657,8 @@ const CustomersPage: React.FC = () => {
               value={currentCustomer?.phone_number || ''}
               onChange={(e) => setCurrentCustomer({ ...currentCustomer!, phone_number: e.target.value })}
             />
-            <div className="flex justify-end pt-4 border-t">
-              <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+            <div className="flex justify-end pt-4 border-t border-gray-200">
+              <button type="submit" className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
                 Save
               </button>
             </div>
@@ -681,13 +689,10 @@ const TasksPage: React.FC = () => {
   const fetchTasks = async () => {
     if (!supabase) return;
     try {
+      // Corrected select query string to be a single line without comments or newlines inside
       const { data, error } = await supabase
         .from('tasks')
-        .select(`
-          *,
-          employees(full_name),
-          customers(company_name)
-        `);
+        .select('id,title,status,description,due_date,priority,assign_to_employee,assign_to_customer,employees(full_name),customers(company_name)');
       if (error) throw error;
       setTasks(data || []);
     } catch (error) {
@@ -723,7 +728,9 @@ const TasksPage: React.FC = () => {
       if (currentTask.id) {
         await supabase.from('tasks').update(currentTask).eq('id', currentTask.id);
       } else {
-        await supabase.from('tasks').insert([currentTask]);
+        // Add new task: Omit id to let Supabase auto-generate
+        const { id, ...newTaskWithoutId } = currentTask; // Destructure to exclude id
+        await supabase.from('tasks').insert([newTaskWithoutId]);
       }
       fetchTasks();
       setIsModalOpen(false);
@@ -744,14 +751,17 @@ const TasksPage: React.FC = () => {
   };
 
   const openAddModal = () => {
+    // For a new task, do not set the ID. Let Supabase auto-generate.
     setCurrentTask({
-      id: 0,
       title: '',
       status: 'To Do',
       description: '',
       due_date: new Date().toISOString().split('T')[0],
       priority: 'Medium',
-    });
+      // Ensure these new properties are initialized correctly
+      assign_to_employee: undefined, // Initialize as undefined or null
+      assign_to_customer: undefined, // Initialize as undefined or null
+    } as Task); // Cast to Task as id is omitted
     setIsModalOpen(true);
   };
 
@@ -768,39 +778,46 @@ const TasksPage: React.FC = () => {
   return (
     <PageContainer>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-[--color-text]">Tasks</h1>
-        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-full shadow-md hover:bg-blue-700 transition-colors">
+        <h1 className="text-3xl font-bold text-gray-800">Tasks</h1>
+        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
           <Plus className="h-5 w-5 mr-2" />
           Add Task
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl shadow">
+      <div className="overflow-x-auto rounded-xl shadow-lg">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned to Employee</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned to Customer</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-[--color-bg] divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-200">
             {tasks.map((task) => (
               <tr key={task.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[--color-text]">{task.title}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">
-                  <StatusBadge status={task.status} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{task.title}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{task.description}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                   <PriorityBadge priority={task.priority} />
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">{task.due_date}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">
-                  {task.employees?.full_name || task.customers?.company_name || 'Unassigned'}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <StatusBadge status={task.status} />
                 </td>
+                {/* Display full_name from employees or company_name from customers, or 'N/A' */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {task.employees?.[0]?.full_name || 'N/A'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {task.customers?.[0]?.company_name || 'N/A'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{task.due_date}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                   <button onClick={() => openEditModal(task)} className="text-blue-600 hover:text-blue-900">
                     <Edit className="h-5 w-5 inline" />
@@ -866,24 +883,26 @@ const TasksPage: React.FC = () => {
               onChange={(e) => setCurrentTask({ ...currentTask!, due_date: e.target.value })}
               required
             />
+            {/* Corrected name attribute and onChange handler for employee assignment */}
             <FormSelect
               label="Assign to Employee"
-              id="assigned_to_employee_id"
-              name="assigned_to_employee_id"
-              value={currentTask?.assigned_to_employee_id || ''}
-              onChange={(e) => setCurrentTask({ ...currentTask!, assigned_to_employee_id: e.target.value ? Number(e.target.value) : undefined })}
+              id="assign_to_employee"
+              name="assign_to_employee"
+              value={currentTask?.assign_to_employee || ''}
+              onChange={(e) => setCurrentTask({ ...currentTask!, assign_to_employee: e.target.value ? Number(e.target.value) : undefined })}
               options={[{ value: '', label: 'Unassigned' }, ...employees.map(e => ({ value: e.id, label: e.full_name }))]}
             />
+            {/* Corrected name attribute and onChange handler for customer assignment */}
             <FormSelect
               label="Assign to Customer"
-              id="assigned_to_customer_id"
-              name="assigned_to_customer_id"
-              value={currentTask?.assigned_to_customer_id || ''}
-              onChange={(e) => setCurrentTask({ ...currentTask!, assigned_to_customer_id: e.target.value ? Number(e.target.value) : undefined })}
+              id="assign_to_customer"
+              name="assign_to_customer"
+              value={currentTask?.assign_to_customer || ''}
+              onChange={(e) => setCurrentTask({ ...currentTask!, assign_to_customer: e.target.value ? Number(e.target.value) : undefined })}
               options={[{ value: '', label: 'Unassigned' }, ...customers.map(c => ({ value: c.id, label: c.company_name }))]}
             />
-            <div className="flex justify-end pt-4 border-t">
-              <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+            <div className="flex justify-end pt-4 border-t border-gray-200">
+              <button type="submit" className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
                 Save
               </button>
             </div>
@@ -923,8 +942,8 @@ const App = () => {
   const renderPage = () => {
     if (!supabase) {
       return (
-        <div className="flex items-center justify-center min-h-[calc(100vh-100px)] p-4 text-center">
-          <p className="text-red-500 font-medium text-lg">
+        <div className="flex items-center justify-center min-h-[calc(100vh-100px)] p-4 text-center bg-white rounded-lg shadow-md">
+          <p className="text-red-600 font-medium text-lg">
             Supabase is not configured. Please check your environment variables.
           </p>
         </div>
@@ -945,7 +964,7 @@ const App = () => {
   };
 
   return (
-    <div className="flex min-h-screen font-sans bg-[--color-bg] text-[--color-text]">
+    <div className="flex min-h-screen font-sans bg-gray-100 text-gray-900">
       <Sidebar
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
@@ -953,7 +972,7 @@ const App = () => {
         setIsSidebarOpen={setIsSidebarOpen}
       />
       <div className="flex-1 flex flex-col">
-        <header className="bg-[--color-bg] p-4 flex items-center justify-between shadow-sm border-b lg:hidden">
+        <header className="bg-white p-4 flex items-center justify-between shadow-sm border-b border-gray-200 lg:hidden">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="text-gray-500 hover:text-gray-900 focus:outline-none"
