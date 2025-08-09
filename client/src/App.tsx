@@ -1,9 +1,19 @@
 import './styles.css';
 import React, { useState, useEffect } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Home, Users, Briefcase, FileText, Menu, X, Plus, ChevronUp, ChevronDown, Trash2, Edit } from 'lucide-react';
+import { Home, Users, Briefcase, FileText, Menu, X, Plus, ChevronUp, ChevronDown, Trash2, Edit, FilePieChart } from 'lucide-react';
 
-// Assuming these types are defined in a separate file or at the top of this file
+// Supabase Client Configuration
+const supabaseUrl: string | undefined = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey: string | undefined = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Supabase credentials missing. Please check your environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY).');
+}
+
+const supabase: SupabaseClient | null = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+
+// Interfaces
 interface Employee {
   id: number;
   full_name: string;
@@ -27,12 +37,11 @@ interface Task {
   description: string;
   due_date: string;
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
-  // Corrected column names to match the database schema as per user feedback
-  assign_to_employee?: number;
-  assign_to_customer?: number;
-  // Corrected types for employees and customers to match Supabase's return structure as arrays
-  employees?: { full_name: string }[]; // Changed to array
-  customers?: { company_name: string }[]; // Changed to array
+  assign_to_employee: number | null;
+  assign_to_customer: number | null;
+  employees: { full_name: string } | null;
+  customers: { company_name: string } | null;
+  billing_amount: number | null; // Added billing amount field
 }
 
 interface NavLinkProps {
@@ -78,7 +87,7 @@ interface FormSelectProps {
   label: string;
   id: string;
   name: string;
-  value: string | number;
+  value: string | number | null;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   options: { value: string | number; label: string }[];
   required?: boolean;
@@ -92,17 +101,8 @@ interface PriorityBadgeProps {
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
 }
 
-// Supabase Client Configuration
-const supabaseUrl: string | undefined = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey: string | undefined = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Reusable Components
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase credentials missing. Please check your environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY).');
-}
-
-const supabase: SupabaseClient | null = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
-
-// Reusable Navigation Link component
 const NavLink: React.FC<NavLinkProps> = ({ icon: Icon, label, isActive, onClick }) => (
   <button
     onClick={onClick}
@@ -117,7 +117,6 @@ const NavLink: React.FC<NavLinkProps> = ({ icon: Icon, label, isActive, onClick 
   </button>
 );
 
-// Sidebar component
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isSidebarOpen, setIsSidebarOpen }) => {
   const navItems = [
     { label: 'Dashboard', icon: Home },
@@ -128,7 +127,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isSideba
 
   return (
     <>
-      {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden transition-opacity"
@@ -167,7 +165,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isSideba
   );
 };
 
-// Generic Modal component
 const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75 backdrop-blur-sm">
     <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 transform scale-95 transition-transform duration-200">
@@ -177,13 +174,11 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => (
           <X className="h-6 w-6" />
         </button>
       </div>
-      {/* Added max-h and overflow-y-auto for modal content scrolling */}
       <div className="py-2 max-h-[70vh] overflow-y-auto">{children}</div>
     </div>
   </div>
 );
 
-// Confirmation Modal component
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, title, message, onConfirm, onCancel }) => {
   if (!isOpen) return null;
   return (
@@ -207,7 +202,6 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, title, me
   );
 };
 
-// Reusable Form Input
 const FormInput: React.FC<FormInputProps> = ({ label, id, name, type = 'text', value, onChange, placeholder, required = false }) => (
   <div>
     <label htmlFor={id} className="block text-sm font-medium text-gray-700">
@@ -226,7 +220,6 @@ const FormInput: React.FC<FormInputProps> = ({ label, id, name, type = 'text', v
   </div>
 );
 
-// Reusable Form Select
 const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChange, options, required = false }) => (
   <div>
     <label htmlFor={id} className="block text-sm font-medium text-gray-700">
@@ -235,7 +228,7 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChang
     <select
       id={id}
       name={name}
-      value={value}
+      value={value || ''}
       onChange={onChange}
       required={required}
       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border transition-colors text-gray-900"
@@ -249,7 +242,6 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChang
   </div>
 );
 
-// Status Badge component
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const statusColors = {
     'To Do': 'bg-blue-100 text-blue-800',
@@ -264,7 +256,6 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   );
 };
 
-// Priority Badge component
 const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
   const priorityColors = {
     'Low': 'text-green-500',
@@ -275,9 +266,9 @@ const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
 
   const icon = {
     'Low': <ChevronDown className="h-4 w-4 mr-1" />,
-    'Medium': <></>, // No specific icon for medium, or choose a neutral one
+    'Medium': <></>,
     'High': <ChevronUp className="h-4 w-4 mr-1" />,
-    'Urgent': <ChevronUp className="h-4 w-4 mr-1 rotate-180" />, // Can rotate for more urgency
+    'Urgent': <ChevronUp className="h-4 w-4 mr-1 rotate-180" />,
   };
 
   return (
@@ -294,7 +285,48 @@ const PageContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   </div>
 );
 
-// Dashboard Page
+// New Employee Report Modal component
+interface EmployeeReportModalProps {
+  employee: Employee;
+  tasks: Task[];
+  onClose: () => void;
+}
+
+const EmployeeReportModal: React.FC<EmployeeReportModalProps> = ({ employee, tasks, onClose }) => {
+  const statusCounts = tasks.reduce((acc, task) => {
+    acc[task.status] = (acc[task.status] || 0) + 1;
+    return acc;
+  }, {} as Record<Task['status'], number>);
+  
+  const totalTasks = tasks.length;
+  
+  const getPercentage = (count: number) => {
+    if (totalTasks === 0) return 0;
+    return ((count / totalTasks) * 100).toFixed(1);
+  };
+  
+  return (
+    <Modal title={`Task Report for ${employee.full_name}`} onClose={onClose}>
+      <div className="p-4 bg-gray-50 rounded-lg">
+        <p className="text-sm text-gray-600 mb-2">Total Tasks Assigned: <span className="font-semibold">{totalTasks}</span></p>
+        <ul className="space-y-2">
+          {Object.entries(statusCounts).map(([status, count]) => (
+            <li key={status} className="flex justify-between items-center bg-white p-3 rounded-md shadow-sm">
+              <span className="text-sm font-medium text-gray-700">{status}</span>
+              <span className="text-lg font-bold text-blue-600">
+                {count} {totalTasks > 0 && `(${getPercentage(count)}%)`}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {totalTasks === 0 && <p className="text-center text-gray-500 mt-4">No tasks assigned to this employee.</p>}
+      </div>
+    </Modal>
+  );
+};
+
+// Main Pages
+
 const DashboardPage: React.FC = () => {
   const [counts, setCounts] = useState<{ employees: number; customers: number; tasks: number } | null>(null);
 
@@ -339,12 +371,14 @@ const DashboardPage: React.FC = () => {
   );
 };
 
-// Employees Page
 const EmployeesPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [employeeReportTasks, setEmployeeReportTasks] = useState<Task[]>([]);
+  const [selectedEmployeeForReport, setSelectedEmployeeForReport] = useState<Employee | null>(null);
 
   const fetchEmployees = async () => {
     if (!supabase) return;
@@ -354,6 +388,21 @@ const EmployeesPage: React.FC = () => {
       setEmployees(data || []);
     } catch (error) {
       console.error('Error fetching employees:', error);
+    }
+  };
+
+  const fetchTasksByEmployeeId = async (employeeId: number) => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('assign_to_employee', employeeId);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching tasks for employee:', error);
+      return [];
     }
   };
 
@@ -367,11 +416,9 @@ const EmployeesPage: React.FC = () => {
 
     try {
       if (currentEmployee.id) {
-        // Update employee
         await supabase.from('employees').update(currentEmployee).eq('id', currentEmployee.id);
       } else {
-        // Add new employee: Omit id to let Supabase auto-generate
-        const { id, ...newEmployeeWithoutId } = currentEmployee; // Destructure to exclude id
+        const { id, ...newEmployeeWithoutId } = currentEmployee;
         await supabase.from('employees').insert([newEmployeeWithoutId]);
       }
       fetchEmployees();
@@ -384,7 +431,20 @@ const EmployeesPage: React.FC = () => {
   const handleDelete = async () => {
     if (!supabase || !currentEmployee) return;
     try {
-      await supabase.from('employees').delete().eq('id', currentEmployee.id);
+      const { error: unassignError } = await supabase
+        .from('tasks')
+        .update({ assign_to_employee: null })
+        .eq('assign_to_employee', currentEmployee.id);
+
+      if (unassignError) throw unassignError;
+
+      const { error: deleteError } = await supabase
+        .from('employees')
+        .delete()
+        .eq('id', currentEmployee.id);
+
+      if (deleteError) throw deleteError;
+
       fetchEmployees();
       setIsConfirmationModalOpen(false);
     } catch (error) {
@@ -393,7 +453,6 @@ const EmployeesPage: React.FC = () => {
   };
 
   const openAddModal = () => {
-    // For a new employee, do not set the ID. Let Supabase auto-generate.
     setCurrentEmployee({ full_name: '', email: '', position: '', department: '' } as Employee);
     setIsModalOpen(true);
   };
@@ -406,6 +465,13 @@ const EmployeesPage: React.FC = () => {
   const openConfirmationModal = (employee: Employee) => {
     setCurrentEmployee(employee);
     setIsConfirmationModalOpen(true);
+  };
+
+  const openReportModal = async (employee: Employee) => {
+    const tasks = await fetchTasksByEmployeeId(employee.id);
+    setSelectedEmployeeForReport(employee);
+    setEmployeeReportTasks(tasks);
+    setIsReportModalOpen(true);
   };
 
   return (
@@ -437,6 +503,9 @@ const EmployeesPage: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.position}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.department}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                  <button onClick={() => openReportModal(employee)} className="text-blue-600 hover:text-blue-900">
+                    <FilePieChart className="h-5 w-5 inline" />
+                  </button>
                   <button onClick={() => openEditModal(employee)} className="text-blue-600 hover:text-blue-900">
                     <Edit className="h-5 w-5 inline" />
                   </button>
@@ -505,11 +574,18 @@ const EmployeesPage: React.FC = () => {
         onConfirm={handleDelete}
         onCancel={() => setIsConfirmationModalOpen(false)}
       />
+
+      {isReportModalOpen && selectedEmployeeForReport && (
+        <EmployeeReportModal
+          employee={selectedEmployeeForReport}
+          tasks={employeeReportTasks}
+          onClose={() => setIsReportModalOpen(false)}
+        />
+      )}
     </PageContainer>
   );
 };
 
-// Customers Page
 const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -539,8 +615,7 @@ const CustomersPage: React.FC = () => {
       if (currentCustomer.id) {
         await supabase.from('customers').update(currentCustomer).eq('id', currentCustomer.id);
       } else {
-        // Add new customer: Omit id to let Supabase auto-generate
-        const { id, ...newCustomerWithoutId } = currentCustomer; // Destructure to exclude id
+        const { id, ...newCustomerWithoutId } = currentCustomer;
         await supabase.from('customers').insert([newCustomerWithoutId]);
       }
       fetchCustomers();
@@ -553,7 +628,20 @@ const CustomersPage: React.FC = () => {
   const handleDelete = async () => {
     if (!supabase || !currentCustomer) return;
     try {
-      await supabase.from('customers').delete().eq('id', currentCustomer.id);
+      const { error: unassignError } = await supabase
+        .from('tasks')
+        .update({ assign_to_customer: null })
+        .eq('assign_to_customer', currentCustomer.id);
+
+      if (unassignError) throw unassignError;
+
+      const { error: deleteError } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', currentCustomer.id);
+
+      if (deleteError) throw deleteError;
+
       fetchCustomers();
       setIsConfirmationModalOpen(false);
     } catch (error) {
@@ -562,7 +650,6 @@ const CustomersPage: React.FC = () => {
   };
 
   const openAddModal = () => {
-    // For a new customer, do not set the ID. Let Supabase auto-generate.
     setCurrentCustomer({ company_name: '', contact_person: '', email: '', phone_number: '' } as Customer);
     setIsModalOpen(true);
   };
@@ -677,7 +764,6 @@ const CustomersPage: React.FC = () => {
   );
 };
 
-// Tasks Page
 const TasksPage: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -689,10 +775,21 @@ const TasksPage: React.FC = () => {
   const fetchTasks = async () => {
     if (!supabase) return;
     try {
-      // Corrected select query string to be a single line without comments or newlines inside
       const { data, error } = await supabase
         .from('tasks')
-        .select('id,title,status,description,due_date,priority,assign_to_employee,assign_to_customer,employees(full_name),customers(company_name)');
+        .select(`
+          id,
+          title,
+          status,
+          description,
+          due_date,
+          priority,
+          assign_to_employee,
+          assign_to_customer,
+          billing_amount,
+          employees(full_name),
+          customers(company_name)
+        `);
       if (error) throw error;
       setTasks(data || []);
     } catch (error) {
@@ -725,12 +822,21 @@ const TasksPage: React.FC = () => {
     if (!supabase || !currentTask) return;
 
     try {
+      const taskDataToSave = {
+        title: currentTask.title,
+        status: currentTask.status,
+        description: currentTask.description,
+        due_date: currentTask.due_date,
+        priority: currentTask.priority,
+        assign_to_employee: currentTask.assign_to_employee || null,
+        assign_to_customer: currentTask.assign_to_customer || null,
+        billing_amount: currentTask.billing_amount || 0,
+      };
+
       if (currentTask.id) {
-        await supabase.from('tasks').update(currentTask).eq('id', currentTask.id);
+        await supabase.from('tasks').update(taskDataToSave).eq('id', currentTask.id);
       } else {
-        // Add new task: Omit id to let Supabase auto-generate
-        const { id, ...newTaskWithoutId } = currentTask; // Destructure to exclude id
-        await supabase.from('tasks').insert([newTaskWithoutId]);
+        await supabase.from('tasks').insert([taskDataToSave]);
       }
       fetchTasks();
       setIsModalOpen(false);
@@ -751,22 +857,28 @@ const TasksPage: React.FC = () => {
   };
 
   const openAddModal = () => {
-    // For a new task, do not set the ID. Let Supabase auto-generate.
     setCurrentTask({
+      id: 0,
       title: '',
       status: 'To Do',
       description: '',
       due_date: new Date().toISOString().split('T')[0],
       priority: 'Medium',
-      // Ensure these new properties are initialized correctly
-      assign_to_employee: undefined, // Initialize as undefined or null
-      assign_to_customer: undefined, // Initialize as undefined or null
-    } as Task); // Cast to Task as id is omitted
+      assign_to_employee: null,
+      assign_to_customer: null,
+      employees: null,
+      customers: null,
+      billing_amount: null
+    });
     setIsModalOpen(true);
   };
 
   const openEditModal = (task: Task) => {
-    setCurrentTask(task);
+    setCurrentTask({
+      ...task,
+      assign_to_employee: task.assign_to_employee,
+      assign_to_customer: task.assign_to_customer,
+    });
     setIsModalOpen(true);
   };
 
@@ -796,6 +908,7 @@ const TasksPage: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned to Employee</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned to Customer</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Billing Amount</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
@@ -810,14 +923,14 @@ const TasksPage: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                   <StatusBadge status={task.status} />
                 </td>
-                {/* Display full_name from employees or company_name from customers, or 'N/A' */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {task.employees?.[0]?.full_name || 'N/A'}
+                  {task.employees?.full_name || 'N/A'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {task.customers?.[0]?.company_name || 'N/A'}
+                  {task.customers?.company_name || 'N/A'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{task.due_date}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{task.billing_amount ? task.billing_amount.toFixed(2) : '0.00'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                   <button onClick={() => openEditModal(task)} className="text-blue-600 hover:text-blue-900">
                     <Edit className="h-5 w-5 inline" />
@@ -883,22 +996,28 @@ const TasksPage: React.FC = () => {
               onChange={(e) => setCurrentTask({ ...currentTask!, due_date: e.target.value })}
               required
             />
-            {/* Corrected name attribute and onChange handler for employee assignment */}
+            <FormInput
+              label="Billing Amount ($)"
+              id="billing_amount"
+              name="billing_amount"
+              type="number"
+              value={currentTask?.billing_amount || ''}
+              onChange={(e) => setCurrentTask({ ...currentTask!, billing_amount: parseFloat(e.target.value) })}
+            />
             <FormSelect
               label="Assign to Employee"
               id="assign_to_employee"
               name="assign_to_employee"
               value={currentTask?.assign_to_employee || ''}
-              onChange={(e) => setCurrentTask({ ...currentTask!, assign_to_employee: e.target.value ? Number(e.target.value) : undefined })}
+              onChange={(e) => setCurrentTask({ ...currentTask!, assign_to_employee: e.target.value ? Number(e.target.value) : null })}
               options={[{ value: '', label: 'Unassigned' }, ...employees.map(e => ({ value: e.id, label: e.full_name }))]}
             />
-            {/* Corrected name attribute and onChange handler for customer assignment */}
             <FormSelect
               label="Assign to Customer"
               id="assign_to_customer"
               name="assign_to_customer"
               value={currentTask?.assign_to_customer || ''}
-              onChange={(e) => setCurrentTask({ ...currentTask!, assign_to_customer: e.target.value ? Number(e.target.value) : undefined })}
+              onChange={(e) => setCurrentTask({ ...currentTask!, assign_to_customer: e.target.value ? Number(e.target.value) : null })}
               options={[{ value: '', label: 'Unassigned' }, ...customers.map(c => ({ value: c.id, label: c.company_name }))]}
             />
             <div className="flex justify-end pt-4 border-t border-gray-200">
@@ -922,12 +1041,10 @@ const TasksPage: React.FC = () => {
 };
 
 
-// Main App component
 const App = () => {
   const [currentPage, setCurrentPage] = useState('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Effect to manage body overflow for the mobile sidebar
   useEffect(() => {
     if (isSidebarOpen) {
       document.body.style.overflow = 'hidden';
@@ -980,7 +1097,7 @@ const App = () => {
             <Menu className="h-6 w-6" />
           </button>
           <h1 className="text-xl font-bold text-blue-600">TaskTracker</h1>
-          <div className="w-6"></div> {/* Spacer to balance the layout */}
+          <div className="w-6"></div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {renderPage()}
