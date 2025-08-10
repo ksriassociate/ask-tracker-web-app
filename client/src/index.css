@@ -1,17 +1,1 @@
-/* C:\Users\DELL\Desktop\Task\TaskTracker\TaskTracker\client\src\index.css */
-
-/* Add the standard Tailwind directives at the top */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/*
-  IMPORTANT: Remove all other custom CSS from this file,
-  especially any :root blocks defining --color-bg, --color-text,
-  and any direct styles for body, h1, h2, etc.
-
-  Your React components are using direct Tailwind classes (e.g., bg-gray-100,
-  text-gray-900), and these custom CSS variables/global rules
-  are overriding those. Tailwind's `@tailwind base` already handles
-  sensible defaults for body and headings.
-*/
+@import "tailwindcss";

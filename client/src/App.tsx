@@ -1,7 +1,7 @@
-import './styles.css';
 import React, { useState, useEffect } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Home, Users, Briefcase, FileText, Menu, X, Plus, ChevronUp, ChevronDown, Trash2, Edit, FilePieChart } from 'lucide-react';
+import { Home, Users, Briefcase, FileText, Menu, X, Plus, ChevronUp, ChevronDown, Trash2, Edit, FilePieChart, User, BriefcaseMedical, Landmark, DollarSign, List, Download } from 'lucide-react';
+import './index.css';
 
 // Supabase Client Configuration
 const supabaseUrl: string | undefined = import.meta.env.VITE_SUPABASE_URL;
@@ -39,171 +39,48 @@ interface Task {
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
   assign_to_employee: number | null;
   assign_to_customer: number | null;
-  employees: { full_name: string } | null;
-  customers: { company_name: string } | null;
-  billing_amount: number | null; // Added billing amount field
+  billing_amount?: number;
 }
 
-interface NavLinkProps {
-  icon: React.ElementType;
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}
+// =========================================================
+// Reusable Components
+// =========================================================
 
-interface SidebarProps {
-  currentPage: string;
-  setCurrentPage: (page: string) => void;
-  isSidebarOpen: boolean;
-  setIsSidebarOpen: (isOpen: boolean) => void;
-}
-
+// Modal Component - Corrected to handle scrolling
 interface ModalProps {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
 }
 
-interface ConfirmationModalProps {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-interface FormInputProps {
-  label: string;
-  id: string;
-  name: string;
-  type?: string;
-  value: string | number;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
-  placeholder?: string;
-  required?: boolean;
-}
-
-interface FormSelectProps {
-  label: string;
-  id: string;
-  name: string;
-  value: string | number | null;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  options: { value: string | number; label: string }[];
-  required?: boolean;
-}
-
-interface StatusBadgeProps {
-  status: 'To Do' | 'In Progress' | 'Completed';
-}
-
-interface PriorityBadgeProps {
-  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
-}
-
-// Reusable Components
-
-const NavLink: React.FC<NavLinkProps> = ({ icon: Icon, label, isActive, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-300 w-full text-left
-      ${isActive
-        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105'
-        : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-      }`}
-  >
-    <Icon className="h-5 w-5" />
-    <span className="text-sm font-medium">{label}</span>
-  </button>
-);
-
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isSidebarOpen, setIsSidebarOpen }) => {
-  const navItems = [
-    { label: 'Dashboard', icon: Home },
-    { label: 'Employees', icon: Users },
-    { label: 'Customers', icon: Briefcase },
-    { label: 'Tasks', icon: FileText },
-  ];
-
-  return (
-    <>
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden transition-opacity"
-          onClick={() => setIsSidebarOpen(false)}
-        ></div>
-      )}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-800 text-white p-4 shadow-xl transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0`}
-      >
-        <div className="flex items-center justify-between border-b border-gray-700 pb-4 mb-6">
-          <h2 className="text-2xl font-bold text-purple-400">TaskTracker</h2>
-          <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="text-gray-400 hover:text-white lg:hidden"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-        <nav className="space-y-2">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.label}
-              icon={item.icon}
-              label={item.label}
-              isActive={currentPage === item.label}
-              onClick={() => {
-                setCurrentPage(item.label);
-                setIsSidebarOpen(false);
-              }}
-            />
-          ))}
-        </nav>
-      </div>
-    </>
-  );
-};
-
 const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75 backdrop-blur-sm">
-    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 transform scale-95 transition-transform duration-200">
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-70 backdrop-blur-sm">
+    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4 transform transition-all duration-200">
       <div className="flex justify-between items-center border-b border-gray-200 pb-3 mb-4">
-        <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
+        <h3 className="text-2xl font-bold text-gray-800">{title}</h3>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
           <X className="h-6 w-6" />
         </button>
       </div>
-      <div className="py-2 max-h-[70vh] overflow-y-auto">{children}</div>
+      <div className="py-2 overflow-y-auto max-h-[70vh]">{children}</div>
     </div>
   </div>
 );
 
-const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, title, message, onConfirm, onCancel }) => {
-  if (!isOpen) return null;
-  return (
-    <Modal title={title} onClose={onCancel}>
-      <p className="text-gray-600 mb-6">{message}</p>
-      <div className="flex justify-end space-x-3">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={onConfirm}
-          className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors font-medium"
-        >
-          Delete
-        </button>
-      </div>
-    </Modal>
-  );
-};
+// Form Input Component
+interface FormInputProps {
+  label: string;
+  id: string;
+  name: string;
+  type?: 'text' | 'email' | 'date' | 'number' | 'tel';
+  value: string | number;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  required?: boolean;
+}
 
 const FormInput: React.FC<FormInputProps> = ({ label, id, name, type = 'text', value, onChange, placeholder, required = false }) => (
-  <div>
+  <div className="mb-4">
     <label htmlFor={id} className="block text-sm font-medium text-gray-700">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
@@ -220,8 +97,19 @@ const FormInput: React.FC<FormInputProps> = ({ label, id, name, type = 'text', v
   </div>
 );
 
+// Form Select Component
+interface FormSelectProps {
+  label: string;
+  id: string;
+  name: string;
+  value: string | number | null;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  options: { value: string | number; label: string }[];
+  required?: boolean;
+}
+
 const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChange, options, required = false }) => (
-  <div>
+  <div className="mb-4">
     <label htmlFor={id} className="block text-sm font-medium text-gray-700">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
@@ -233,6 +121,7 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChang
       required={required}
       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border transition-colors text-gray-900"
     >
+      <option value="" disabled>Select an option</option>
       {options.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
@@ -242,295 +131,451 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChang
   </div>
 );
 
-const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
-  const statusColors = {
-    'To Do': 'bg-blue-100 text-blue-800',
-    'In Progress': 'bg-yellow-100 text-yellow-800',
-    'Completed': 'bg-green-100 text-green-800',
+// Form Textarea Component
+interface FormTextareaProps {
+  label: string;
+  id: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  required?: boolean;
+}
+
+const FormTextarea: React.FC<FormTextareaProps> = ({ label, id, name, value, onChange, placeholder, required = false }) => (
+  <div className="mb-4">
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <textarea
+      id={id}
+      name={name}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      required={required}
+      rows={4}
+      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border transition-colors text-gray-900"
+    />
+  </div>
+);
+
+// Sidebar Component
+interface SidebarProps {
+  currentPage: string;
+  setCurrentPage: (page: string) => void;
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (isOpen: boolean) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isSidebarOpen, setIsSidebarOpen }) => {
+  const pages = [
+    { name: 'Dashboard', icon: Home },
+    { name: 'Employees', icon: Users },
+    { name: 'Customers', icon: Briefcase },
+    { name: 'Tasks', icon: FileText },
+    { name: 'Reports', icon: FilePieChart }
+  ];
+
+  const handlePageClick = (pageName: string) => {
+    setCurrentPage(pageName);
+    setIsSidebarOpen(false); // Add this line to collapse the sidebar
   };
 
   return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>
-      {status}
-    </span>
+    <>
+      <div
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+      >
+        <div className="flex items-center justify-between p-4 bg-secondary-600 text-white shadow-md">
+          <h1 className="text-2xl font-bold">TaskTracker</h1>
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="lg:hidden text-white hover:text-gray-200 focus:outline-none"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        <nav className="flex-1 p-4 overflow-y-auto">
+          {pages.map((page) => (
+            <button
+              key={page.name}
+              onClick={() => {
+                handlePageClick(page.name);
+              }}
+              className={`flex items-center w-full p-3 rounded-lg my-2 transition-all duration-200 ${currentPage === page.name
+                ? 'bg-secondary-100 text-secondary-700 font-semibold shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
+            >
+              <page.icon className="h-6 w-6 mr-3" />
+              <span>{page.name}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-gray-900 bg-opacity-50 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+    </>
   );
 };
 
-const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
-  const priorityColors = {
-    'Low': 'text-green-500',
-    'Medium': 'text-yellow-500',
-    'High': 'text-orange-500',
-    'Urgent': 'text-red-500',
-  };
+// PageContainer Component
+interface PageContainerProps {
+  children: React.ReactNode;
+  pageTitle: string;
+  actionButtonText?: string;
+  onActionButtonClick?: () => void;
+}
 
-  const icon = {
-    'Low': <ChevronDown className="h-4 w-4 mr-1" />,
-    'Medium': <></>,
-    'High': <ChevronUp className="h-4 w-4 mr-1" />,
-    'Urgent': <ChevronUp className="h-4 w-4 mr-1 rotate-180" />,
-  };
-
-  return (
-    <span className={`inline-flex items-center text-xs font-medium ${priorityColors[priority]}`}>
-      {icon[priority]}
-      {priority}
-    </span>
-  );
-};
-
-const PageContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="p-6 bg-white rounded-2xl shadow-lg min-h-[calc(100vh-120px)]">
+const PageContainer: React.FC<PageContainerProps> = ({
+  children,
+  pageTitle,
+  actionButtonText,
+  onActionButtonClick,
+}) => (
+  <div className="p-6 md:p-8 flex-1 w-full overflow-y-auto">
+    <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+      <h1 className="text-3xl font-extrabold text-gray-900">{pageTitle}</h1>
+      {actionButtonText && onActionButtonClick && (
+        <button
+          onClick={onActionButtonClick}
+          className="bg-blue-600 text-white rounded-full px-5 py-2 flex items-center shadow-lg hover:bg-blue-700 transition-colors font-medium transform hover:scale-105"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          <span>{actionButtonText}</span>
+        </button>
+      )}
+    </div>
     {children}
   </div>
 );
 
-// New Employee Report Modal component
-interface EmployeeReportModalProps {
-  employee: Employee;
-  tasks: Task[];
-  onClose: () => void;
+// Card Component
+interface CardProps {
+  title: string;
+  icon: React.ElementType;
+  value: string | number;
+  description: string;
 }
 
-const EmployeeReportModal: React.FC<EmployeeReportModalProps> = ({ employee, tasks, onClose }) => {
-  const statusCounts = tasks.reduce((acc, task) => {
-    acc[task.status] = (acc[task.status] || 0) + 1;
-    return acc;
-  }, {} as Record<Task['status'], number>);
-  
-  const totalTasks = tasks.length;
-  
-  const getPercentage = (count: number) => {
-    if (totalTasks === 0) return 0;
-    return ((count / totalTasks) * 100).toFixed(1);
-  };
-  
-  return (
-    <Modal title={`Task Report for ${employee.full_name}`} onClose={onClose}>
-      <div className="p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm text-gray-600 mb-2">Total Tasks Assigned: <span className="font-semibold">{totalTasks}</span></p>
-        <ul className="space-y-2">
-          {Object.entries(statusCounts).map(([status, count]) => (
-            <li key={status} className="flex justify-between items-center bg-white p-3 rounded-md shadow-sm">
-              <span className="text-sm font-medium text-gray-700">{status}</span>
-              <span className="text-lg font-bold text-blue-600">
-                {count} {totalTasks > 0 && `(${getPercentage(count)}%)`}
-              </span>
-            </li>
-          ))}
-        </ul>
-        {totalTasks === 0 && <p className="text-center text-gray-500 mt-4">No tasks assigned to this employee.</p>}
+const Card: React.FC<CardProps> = ({ title, icon: Icon, value, description }) => (
+  <div className="bg-white p-6 rounded-2xl shadow-xl flex items-center justify-between transition-transform transform hover:scale-105">
+    <div className="flex items-center">
+      <div className="bg-blue-100 p-3 rounded-full text-blue-600 mr-4">
+        <Icon className="h-8 w-8" />
       </div>
-    </Modal>
+      <div>
+        <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+        <p className="text-gray-500 text-sm">{description}</p>
+      </div>
+    </div>
+    <div className="text-4xl font-extrabold text-blue-600">{value}</div>
+  </div>
+);
+
+// Table Component
+interface TableProps<T> {
+  data: T[];
+  columns: { key: keyof T; header: string; render?: (item: T) => React.ReactNode }[];
+  onEdit?: (item: T) => void;
+  onDelete?: (id: number) => void;
+}
+
+const Table = <T extends { id: number; }>({ data, columns, onEdit, onDelete }: TableProps<T>) => {
+  const [sortConfig, setSortConfig] = useState<{ key: keyof T; direction: 'ascending' | 'descending' } | null>(null);
+
+  const sortedData = React.useMemo(() => {
+    let sortableItems = [...data];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          if (aValue < bValue) {
+            return sortConfig.direction === 'ascending' ? -1 : 1;
+          }
+          if (aValue > bValue) {
+            return sortConfig.direction === 'ascending' ? 1 : -1;
+          }
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [data, sortConfig]);
+
+  const requestSort = (key: keyof T) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'desce nding';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key: keyof T) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return null;
+    }
+    return sortConfig.direction === 'ascending' ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />;
+  };
+
+  return (
+    <div className="overflow-x-auto bg-white rounded-lg shadow-xl">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            {columns.map((column) => (
+              <th
+                key={String(column.key)}
+                onClick={() => requestSort(column.key)}
+                className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+              >
+                <div className="flex items-center">
+                  {column.header}
+                  {getSortIcon(column.key)}
+                </div>
+              </th>
+            ))}
+            {(onEdit || onDelete) && (
+              <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            )}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {sortedData.map((item) => (
+            <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+              {columns.map((column) => (
+                <td
+                  key={String(column.key)}
+                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-800"
+                >
+                  {column.render ? column.render(item) : String(item[column.key])}
+                </td>
+              ))}
+              {(onEdit || onDelete) && (
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  {onEdit && (
+                    <button
+                      onClick={() => onEdit(item)}
+                      className="text-blue-600 hover:text-blue-900 mr-4"
+                    >
+                      <Edit className="h-5 w-5" />
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(item.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
-// Main Pages
 
-const DashboardPage: React.FC = () => {
-  const [counts, setCounts] = useState<{ employees: number; customers: number; tasks: number } | null>(null);
+// =========================================================
+// Page Components
+// =========================================================
+
+const DashboardPage = () => {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
-    const fetchCounts = async () => {
-      if (!supabase) return;
-      try {
-        const { count: employeeCount } = await supabase.from('employees').select('*', { count: 'exact' });
-        const { count: customerCount } = await supabase.from('customers').select('*', { count: 'exact' });
-        const { count: taskCount } = await supabase.from('tasks').select('*', { count: 'exact' });
-        setCounts({
-          employees: employeeCount || 0,
-          customers: customerCount || 0,
-          tasks: taskCount || 0,
-        });
-      } catch (error) {
-        console.error('Error fetching counts:', error);
-      }
-    };
-    fetchCounts();
+    if (supabase) {
+      fetchData();
+    }
   }, []);
 
-  const Card: React.FC<{ title: string; count: number | null; icon: React.ElementType }> = ({ title, count, icon: Icon }) => (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 p-6 rounded-xl shadow-md flex items-center justify-between transition-transform transform hover:scale-105">
-      <div>
-        <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
-        <p className="text-3xl font-bold text-blue-600 mt-2">{count !== null ? count : '-'}</p>
-      </div>
-      <Icon className="h-10 w-10 text-gray-400" />
-    </div>
-  );
+  const fetchData = async () => {
+    try {
+      const [employeesResponse, customersResponse, tasksResponse] = await Promise.all([
+        supabase.from('employees').select('*'),
+        supabase.from('customers').select('*'),
+        supabase.from('tasks').select('*')
+      ]);
+
+      if (employeesResponse.data) setEmployees(employeesResponse.data);
+      if (customersResponse.data) setCustomers(customersResponse.data);
+      if (tasksResponse.data) setTasks(tasksResponse.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
+  const completedTasks = tasks.filter(task => task.status === 'Completed').length;
+  const inProgressTasks = tasks.filter(task => task.status === 'In Progress').length;
+  const totalTasks = tasks.length;
+  const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(0) : 0;
 
   return (
-    <PageContainer>
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card title="Total Employees" count={counts?.employees ?? null} icon={Users} />
-        <Card title="Total Customers" count={counts?.customers ?? null} icon={Briefcase} />
-        <Card title="Total Tasks" count={counts?.tasks ?? null} icon={FileText} />
+    <PageContainer pageTitle="Dashboard">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card
+          title="Total Employees"
+          icon={Users}
+          value={employees.length}
+          description="Total number of team members"
+        />
+        <Card
+          title="Total Customers"
+          icon={BriefcaseMedical}
+          value={customers.length}
+          description="Total number of clients"
+        />
+        <Card
+          title="Total Tasks"
+          icon={FileText}
+          value={tasks.length}
+          description="All tasks in the system"
+        />
+        <Card
+          title="Completion Rate"
+          icon={FilePieChart}
+          value={`${completionRate}%`}
+          description="Percentage of tasks completed"
+        />
+      </div>
+      <div className="mt-8 bg-white p-6 rounded-2xl shadow-xl">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Task Overview</h2>
+        <div className="flex justify-around items-center">
+          <div className="text-center">
+            <p className="text-5xl font-extrabold text-green-500">{completedTasks}</p>
+            <p className="text-lg text-gray-600">Completed</p>
+          </div>
+          <div className="text-center">
+            <p className="text-5xl font-extrabold text-yellow-500">{inProgressTasks}</p>
+            <p className="text-lg text-gray-600">In Progress</p>
+          </div>
+          <div className="text-center">
+            <p className="text-5xl font-extrabold text-blue-500">{totalTasks - completedTasks - inProgressTasks}</p>
+            <p className="text-lg text-gray-600">To Do</p>
+          </div>
+        </div>
       </div>
     </PageContainer>
   );
 };
 
-const EmployeesPage: React.FC = () => {
+const EmployeesPage = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
-  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [employeeReportTasks, setEmployeeReportTasks] = useState<Task[]>([]);
-  const [selectedEmployeeForReport, setSelectedEmployeeForReport] = useState<Employee | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [formState, setFormState] = useState<Omit<Employee, 'id'>>({
+    full_name: '',
+    email: '',
+    position: '',
+    department: '',
+  });
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+
+  useEffect(() => {
+    if (supabase) {
+      fetchEmployees();
+    }
+  }, []);
 
   const fetchEmployees = async () => {
     if (!supabase) return;
-    try {
-      const { data, error } = await supabase.from('employees').select('*');
-      if (error) throw error;
-      setEmployees(data || []);
-    } catch (error) {
+    const { data, error } = await supabase.from('employees').select('*');
+    if (error) {
       console.error('Error fetching employees:', error);
+    } else {
+      setEmployees(data);
     }
   };
 
-  const fetchTasksByEmployeeId = async (employeeId: number) => {
-    if (!supabase) return;
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('assign_to_employee', employeeId);
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching tasks for employee:', error);
-      return [];
-    }
-  };
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  const handleAddOrUpdate = async (e: React.FormEvent) => {
+  const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase || !currentEmployee) return;
-
-    try {
-      if (currentEmployee.id) {
-        await supabase.from('employees').update(currentEmployee).eq('id', currentEmployee.id);
-      } else {
-        const { id, ...newEmployeeWithoutId } = currentEmployee;
-        await supabase.from('employees').insert([newEmployeeWithoutId]);
-      }
+    if (!supabase) return;
+    const { error } = await supabase.from('employees').insert([formState]);
+    if (error) {
+      console.error('Error adding employee:', error);
+    } else {
+      setFormState({ full_name: '', email: '', position: '', department: '' });
+      setShowModal(false);
       fetchEmployees();
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error('Error saving employee:', error);
     }
   };
 
-  const handleDelete = async () => {
-    if (!supabase || !currentEmployee) return;
-    try {
-      const { error: unassignError } = await supabase
-        .from('tasks')
-        .update({ assign_to_employee: null })
-        .eq('assign_to_employee', currentEmployee.id);
-
-      if (unassignError) throw unassignError;
-
-      const { error: deleteError } = await supabase
-        .from('employees')
-        .delete()
-        .eq('id', currentEmployee.id);
-
-      if (deleteError) throw deleteError;
-
+  const handleUpdateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase || !editingEmployee) return;
+    const { error } = await supabase.from('employees').update(formState).eq('id', editingEmployee.id);
+    if (error) {
+      console.error('Error updating employee:', error);
+    } else {
+      setFormState({ full_name: '', email: '', position: '', department: '' });
+      setEditingEmployee(null);
+      setShowModal(false);
       fetchEmployees();
-      setIsConfirmationModalOpen(false);
-    } catch (error) {
+    }
+  };
+
+  const handleDeleteEmployee = async (id: number) => {
+    if (!supabase) return;
+    const { error } = await supabase.from('employees').delete().eq('id', id);
+    if (error) {
       console.error('Error deleting employee:', error);
+    } else {
+      fetchEmployees();
     }
   };
 
-  const openAddModal = () => {
-    setCurrentEmployee({ full_name: '', email: '', position: '', department: '' } as Employee);
-    setIsModalOpen(true);
+  const handleEdit = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setFormState(employee);
+    setShowModal(true);
   };
 
-  const openEditModal = (employee: Employee) => {
-    setCurrentEmployee(employee);
-    setIsModalOpen(true);
-  };
-
-  const openConfirmationModal = (employee: Employee) => {
-    setCurrentEmployee(employee);
-    setIsConfirmationModalOpen(true);
-  };
-
-  const openReportModal = async (employee: Employee) => {
-    const tasks = await fetchTasksByEmployeeId(employee.id);
-    setSelectedEmployeeForReport(employee);
-    setEmployeeReportTasks(tasks);
-    setIsReportModalOpen(true);
-  };
+  const columns = [
+    { key: 'full_name', header: 'Full Name' },
+    { key: 'email', header: 'Email' },
+    { key: 'position', header: 'Position' },
+    { key: 'department', header: 'Department' },
+  ];
 
   return (
-    <PageContainer>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Employees</h1>
-        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
-          <Plus className="h-5 w-5 mr-2" />
-          Add Employee
-        </button>
-      </div>
-
-      <div className="overflow-x-auto rounded-xl shadow-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {employees.map((employee) => (
-              <tr key={employee.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{employee.full_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.position}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.department}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                  <button onClick={() => openReportModal(employee)} className="text-blue-600 hover:text-blue-900">
-                    <FilePieChart className="h-5 w-5 inline" />
-                  </button>
-                  <button onClick={() => openEditModal(employee)} className="text-blue-600 hover:text-blue-900">
-                    <Edit className="h-5 w-5 inline" />
-                  </button>
-                  <button onClick={() => openConfirmationModal(employee)} className="text-red-600 hover:text-red-900">
-                    <Trash2 className="h-5 w-5 inline" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {isModalOpen && (
-        <Modal
-          title={currentEmployee?.id ? 'Edit Employee' : 'Add Employee'}
-          onClose={() => setIsModalOpen(false)}
-        >
-          <form onSubmit={handleAddOrUpdate} className="space-y-4">
+    <PageContainer
+      pageTitle="Employees"
+      actionButtonText="Add Employee"
+      onActionButtonClick={() => {
+        setEditingEmployee(null);
+        setFormState({ full_name: '', email: '', position: '', department: '' });
+        setShowModal(true);
+      }}
+    >
+      <Table data={employees} columns={columns} onEdit={handleEdit} onDelete={handleDeleteEmployee} />
+      {showModal && (
+        <Modal title={editingEmployee ? "Edit Employee" : "Add Employee"} onClose={() => setShowModal(false)}>
+          <form onSubmit={editingEmployee ? handleUpdateEmployee : handleAddEmployee}>
             <FormInput
               label="Full Name"
               id="full_name"
               name="full_name"
-              value={currentEmployee?.full_name || ''}
-              onChange={(e) => setCurrentEmployee({ ...currentEmployee!, full_name: e.target.value })}
+              value={formState.full_name}
+              onChange={(e) => setFormState({ ...formState, full_name: e.target.value })}
               required
             />
             <FormInput
@@ -538,194 +583,153 @@ const EmployeesPage: React.FC = () => {
               id="email"
               name="email"
               type="email"
-              value={currentEmployee?.email || ''}
-              onChange={(e) => setCurrentEmployee({ ...currentEmployee!, email: e.target.value })}
+              value={formState.email}
+              onChange={(e) => setFormState({ ...formState, email: e.target.value })}
               required
             />
             <FormInput
               label="Position"
               id="position"
               name="position"
-              value={currentEmployee?.position || ''}
-              onChange={(e) => setCurrentEmployee({ ...currentEmployee!, position: e.target.value })}
+              value={formState.position}
+              onChange={(e) => setFormState({ ...formState, position: e.target.value })}
               required
             />
             <FormInput
               label="Department"
               id="department"
               name="department"
-              value={currentEmployee?.department || ''}
-              onChange={(e) => setCurrentEmployee({ ...currentEmployee!, department: e.target.value })}
+              value={formState.department}
+              onChange={(e) => setFormState({ ...formState, department: e.target.value })}
               required
             />
-            <div className="flex justify-end pt-4 border-t border-gray-200">
-              <button type="submit" className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
-                Save
+            <div className="flex justify-end mt-6">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="mr-3 px-6 py-2 rounded-full text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-6 py-2 rounded-full font-medium shadow-md hover:bg-blue-700 transition-colors"
+              >
+                {editingEmployee ? 'Save Changes' : 'Add Employee'}
               </button>
             </div>
           </form>
         </Modal>
       )}
-
-      <ConfirmationModal
-        isOpen={isConfirmationModalOpen}
-        title="Delete Employee"
-        message={`Are you sure you want to delete ${currentEmployee?.full_name}? This action cannot be undone.`}
-        onConfirm={handleDelete}
-        onCancel={() => setIsConfirmationModalOpen(false)}
-      />
-
-      {isReportModalOpen && selectedEmployeeForReport && (
-        <EmployeeReportModal
-          employee={selectedEmployeeForReport}
-          tasks={employeeReportTasks}
-          onClose={() => setIsReportModalOpen(false)}
-        />
-      )}
     </PageContainer>
   );
 };
 
-const CustomersPage: React.FC = () => {
+const CustomersPage = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
-  const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [formState, setFormState] = useState<Omit<Customer, 'id'>>({
+    company_name: '',
+    contact_person: '',
+    email: '',
+    phone_number: '',
+  });
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
+  useEffect(() => {
+    if (supabase) {
+      fetchCustomers();
+    }
+  }, []);
 
   const fetchCustomers = async () => {
     if (!supabase) return;
-    try {
-      const { data, error } = await supabase.from('customers').select('*');
-      if (error) throw error;
-      setCustomers(data || []);
-    } catch (error) {
+    const { data, error } = await supabase.from('customers').select('*');
+    if (error) {
       console.error('Error fetching customers:', error);
+    } else {
+      setCustomers(data);
     }
   };
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const handleAddOrUpdate = async (e: React.FormEvent) => {
+  const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase || !currentCustomer) return;
-
-    try {
-      if (currentCustomer.id) {
-        await supabase.from('customers').update(currentCustomer).eq('id', currentCustomer.id);
-      } else {
-        const { id, ...newCustomerWithoutId } = currentCustomer;
-        await supabase.from('customers').insert([newCustomerWithoutId]);
-      }
+    if (!supabase) return;
+    const { error } = await supabase.from('customers').insert([formState]);
+    if (error) {
+      console.error('Error adding customer:', error);
+    } else {
+      setFormState({ company_name: '', contact_person: '', email: '', phone_number: '' });
+      setShowModal(false);
       fetchCustomers();
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error('Error saving customer:', error);
     }
   };
 
-  const handleDelete = async () => {
-    if (!supabase || !currentCustomer) return;
-    try {
-      const { error: unassignError } = await supabase
-        .from('tasks')
-        .update({ assign_to_customer: null })
-        .eq('assign_to_customer', currentCustomer.id);
-
-      if (unassignError) throw unassignError;
-
-      const { error: deleteError } = await supabase
-        .from('customers')
-        .delete()
-        .eq('id', currentCustomer.id);
-
-      if (deleteError) throw deleteError;
-
+  const handleUpdateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase || !editingCustomer) return;
+    const { error } = await supabase.from('customers').update(formState).eq('id', editingCustomer.id);
+    if (error) {
+      console.error('Error updating customer:', error);
+    } else {
+      setFormState({ company_name: '', contact_person: '', email: '', phone_number: '' });
+      setEditingCustomer(null);
+      setShowModal(false);
       fetchCustomers();
-      setIsConfirmationModalOpen(false);
-    } catch (error) {
+    }
+  };
+
+  const handleDeleteCustomer = async (id: number) => {
+    if (!supabase) return;
+    const { error } = await supabase.from('customers').delete().eq('id', id);
+    if (error) {
       console.error('Error deleting customer:', error);
+    } else {
+      fetchCustomers();
     }
   };
 
-  const openAddModal = () => {
-    setCurrentCustomer({ company_name: '', contact_person: '', email: '', phone_number: '' } as Customer);
-    setIsModalOpen(true);
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setFormState(customer);
+    setShowModal(true);
   };
 
-  const openEditModal = (customer: Customer) => {
-    setCurrentCustomer(customer);
-    setIsModalOpen(true);
-  };
-
-  const openConfirmationModal = (customer: Customer) => {
-    setCurrentCustomer(customer);
-    setIsConfirmationModalOpen(true);
-  };
+  const columns = [
+    { key: 'company_name', header: 'Company Name' },
+    { key: 'contact_person', header: 'Contact Person' },
+    { key: 'email', header: 'Email' },
+    { key: 'phone_number', header: 'Phone Number' },
+  ];
 
   return (
-    <PageContainer>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Customers</h1>
-        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
-          <Plus className="h-5 w-5 mr-2" />
-          Add Customer
-        </button>
-      </div>
-
-      <div className="overflow-x-auto rounded-xl shadow-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {customers.map((customer) => (
-              <tr key={customer.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.company_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.contact_person}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.phone_number}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                  <button onClick={() => openEditModal(customer)} className="text-blue-600 hover:text-blue-900">
-                    <Edit className="h-5 w-5 inline" />
-                  </button>
-                  <button onClick={() => openConfirmationModal(customer)} className="text-red-600 hover:text-red-900">
-                    <Trash2 className="h-5 w-5 inline" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {isModalOpen && (
-        <Modal
-          title={currentCustomer?.id ? 'Edit Customer' : 'Add Customer'}
-          onClose={() => setIsModalOpen(false)}
-        >
-          <form onSubmit={handleAddOrUpdate} className="space-y-4">
+    <PageContainer
+      pageTitle="Customers"
+      actionButtonText="Add Customer"
+      onActionButtonClick={() => {
+        setEditingCustomer(null);
+        setFormState({ company_name: '', contact_person: '', email: '', phone_number: '' });
+        setShowModal(true);
+      }}
+    >
+      <Table data={customers} columns={columns} onEdit={handleEdit} onDelete={handleDeleteCustomer} />
+      {showModal && (
+        <Modal title={editingCustomer ? "Edit Customer" : "Add Customer"} onClose={() => setShowModal(false)}>
+          <form onSubmit={editingCustomer ? handleUpdateCustomer : handleAddCustomer}>
             <FormInput
               label="Company Name"
               id="company_name"
               name="company_name"
-              value={currentCustomer?.company_name || ''}
-              onChange={(e) => setCurrentCustomer({ ...currentCustomer!, company_name: e.target.value })}
+              value={formState.company_name}
+              onChange={(e) => setFormState({ ...formState, company_name: e.target.value })}
               required
             />
             <FormInput
               label="Contact Person"
               id="contact_person"
               name="contact_person"
-              value={currentCustomer?.contact_person || ''}
-              onChange={(e) => setCurrentCustomer({ ...currentCustomer!, contact_person: e.target.value })}
+              value={formState.contact_person}
+              onChange={(e) => setFormState({ ...formState, contact_person: e.target.value })}
               required
             />
             <FormInput
@@ -733,309 +737,426 @@ const CustomersPage: React.FC = () => {
               id="email"
               name="email"
               type="email"
-              value={currentCustomer?.email || ''}
-              onChange={(e) => setCurrentCustomer({ ...currentCustomer!, email: e.target.value })}
+              value={formState.email}
+              onChange={(e) => setFormState({ ...formState, email: e.target.value })}
               required
             />
             <FormInput
               label="Phone Number"
               id="phone_number"
               name="phone_number"
-              value={currentCustomer?.phone_number || ''}
-              onChange={(e) => setCurrentCustomer({ ...currentCustomer!, phone_number: e.target.value })}
+              type="tel"
+              value={formState.phone_number || ''}
+              onChange={(e) => setFormState({ ...formState, phone_number: e.target.value })}
             />
-            <div className="flex justify-end pt-4 border-t border-gray-200">
-              <button type="submit" className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
-                Save
+            <div className="flex justify-end mt-6">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="mr-3 px-6 py-2 rounded-full text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-6 py-2 rounded-full font-medium shadow-md hover:bg-blue-700 transition-colors"
+              >
+                {editingCustomer ? 'Save Changes' : 'Add Customer'}
               </button>
             </div>
           </form>
         </Modal>
       )}
-
-      <ConfirmationModal
-        isOpen={isConfirmationModalOpen}
-        title="Delete Customer"
-        message={`Are you sure you want to delete ${currentCustomer?.company_name}? This action cannot be undone.`}
-        onConfirm={handleDelete}
-        onCancel={() => setIsConfirmationModalOpen(false)}
-      />
     </PageContainer>
   );
 };
 
-const TasksPage: React.FC = () => {
+const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [formState, setFormState] = useState<Omit<Task, 'id'>>({
+    title: '',
+    status: 'To Do',
+    description: '',
+    due_date: '',
+    priority: 'Medium',
+    assign_to_employee: null,
+    assign_to_customer: null,
+    billing_amount: 0,
+  });
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    if (supabase) {
+      fetchTasks();
+      fetchEmployees();
+      fetchCustomers();
+    }
+  }, []);
 
   const fetchTasks = async () => {
     if (!supabase) return;
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          id,
-          title,
-          status,
-          description,
-          due_date,
-          priority,
-          assign_to_employee,
-          assign_to_customer,
-          billing_amount,
-          employees(full_name),
-          customers(company_name)
-        `);
-      if (error) throw error;
-      setTasks(data || []);
-    } catch (error) {
+    const { data, error } = await supabase.from('tasks').select('*');
+    if (error) {
       console.error('Error fetching tasks:', error);
+    } else {
+      setTasks(data);
     }
   };
 
-  const fetchEmployeesAndCustomers = async () => {
+  const fetchEmployees = async () => {
     if (!supabase) return;
-    try {
-      const { data: employeeData, error: employeeError } = await supabase.from('employees').select('*');
-      if (employeeError) throw employeeError;
-      setEmployees(employeeData || []);
-
-      const { data: customerData, error: customerError } = await supabase.from('customers').select('*');
-      if (customerError) throw customerError;
-      setCustomers(customerData || []);
-    } catch (error) {
-      console.error('Error fetching employees and customers:', error);
+    const { data, error } = await supabase.from('employees').select('id, full_name');
+    if (error) {
+      console.error('Error fetching employees:', error);
+    } else {
+      setEmployees(data);
     }
   };
 
-  useEffect(() => {
-    fetchTasks();
-    fetchEmployeesAndCustomers();
-  }, []);
+  const fetchCustomers = async () => {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('customers').select('id, company_name');
+    if (error) {
+      console.error('Error fetching customers:', error);
+    } else {
+      setCustomers(data);
+    }
+  };
 
-  const handleAddOrUpdate = async (e: React.FormEvent) => {
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase || !currentTask) return;
-
-    try {
-      const taskDataToSave = {
-        title: currentTask.title,
-        status: currentTask.status,
-        description: currentTask.description,
-        due_date: currentTask.due_date,
-        priority: currentTask.priority,
-        assign_to_employee: currentTask.assign_to_employee || null,
-        assign_to_customer: currentTask.assign_to_customer || null,
-        billing_amount: currentTask.billing_amount || 0,
-      };
-
-      if (currentTask.id) {
-        await supabase.from('tasks').update(taskDataToSave).eq('id', currentTask.id);
-      } else {
-        await supabase.from('tasks').insert([taskDataToSave]);
-      }
+    if (!supabase) return;
+    const { error } = await supabase.from('tasks').insert([formState]);
+    if (error) {
+      console.error('Error adding task:', error);
+    } else {
+      setFormState({
+        title: '',
+        status: 'To Do',
+        description: '',
+        due_date: '',
+        priority: 'Medium',
+        assign_to_employee: null,
+        assign_to_customer: null,
+        billing_amount: 0,
+      });
+      setShowModal(false);
       fetchTasks();
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error('Error saving task:', error);
     }
   };
 
-  const handleDelete = async () => {
-    if (!supabase || !currentTask) return;
-    try {
-      await supabase.from('tasks').delete().eq('id', currentTask.id);
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase || !editingTask) return;
+    const { error } = await supabase.from('tasks').update(formState).eq('id', editingTask.id);
+    if (error) {
+      console.error('Error updating task:', error);
+    } else {
+      setFormState({
+        title: '',
+        status: 'To Do',
+        description: '',
+        due_date: '',
+        priority: 'Medium',
+        assign_to_employee: null,
+        assign_to_customer: null,
+        billing_amount: 0,
+      });
+      setEditingTask(null);
+      setShowModal(false);
       fetchTasks();
-      setIsConfirmationModalOpen(false);
-    } catch (error) {
+    }
+  };
+
+  const handleDeleteTask = async (id: number) => {
+    if (!supabase) return;
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (error) {
       console.error('Error deleting task:', error);
+    } else {
+      fetchTasks();
     }
   };
 
-  const openAddModal = () => {
-    setCurrentTask({
-      id: 0,
-      title: '',
-      status: 'To Do',
-      description: '',
-      due_date: new Date().toISOString().split('T')[0],
-      priority: 'Medium',
-      assign_to_employee: null,
-      assign_to_customer: null,
-      employees: null,
-      customers: null,
-      billing_amount: null
-    });
-    setIsModalOpen(true);
+  const handleEdit = (task: Task) => {
+    setEditingTask(task);
+    setFormState(task);
+    setShowModal(true);
   };
 
-  const openEditModal = (task: Task) => {
-    setCurrentTask({
-      ...task,
-      assign_to_employee: task.assign_to_employee,
-      assign_to_customer: task.assign_to_customer,
-    });
-    setIsModalOpen(true);
+  const getEmployeeName = (employeeId: number | null) => {
+    const employee = employees.find(e => e.id === employeeId);
+    return employee ? employee.full_name : 'Unassigned';
   };
 
-  const openConfirmationModal = (task: Task) => {
-    setCurrentTask(task);
-    setIsConfirmationModalOpen(true);
+  const getCustomerName = (customerId: number | null) => {
+    const customer = customers.find(c => c.id === customerId);
+    return customer ? customer.company_name : 'Unassigned';
   };
+
+  const columns = [
+    { key: 'title', header: 'Title' },
+    { key: 'description', header: 'Description' },
+    { key: 'status', header: 'Status' },
+    { key: 'priority', header: 'Priority' },
+    { key: 'due_date', header: 'Due Date' },
+    {
+      key: 'billing_amount',
+      header: 'Billing Amount',
+      render: (item: Task) => (item.billing_amount ? `${item.billing_amount}` : 'N/A')
+    },
+    {
+      key: 'assign_to_employee',
+      header: 'Assigned To (Employee)',
+      render: (item: Task) => getEmployeeName(item.assign_to_employee)
+    },
+    {
+      key: 'assign_to_customer',
+      header: 'Assigned To (Customer)',
+      render: (item: Task) => getCustomerName(item.assign_to_customer)
+    }
+  ];
 
   return (
-    <PageContainer>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Tasks</h1>
-        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
-          <Plus className="h-5 w-5 mr-2" />
-          Add Task
-        </button>
-      </div>
-
-      <div className="overflow-x-auto rounded-xl shadow-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned to Employee</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned to Customer</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Billing Amount</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {tasks.map((task) => (
-              <tr key={task.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{task.title}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{task.description}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  <PriorityBadge priority={task.priority} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  <StatusBadge status={task.status} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {task.employees?.full_name || 'N/A'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {task.customers?.company_name || 'N/A'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{task.due_date}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{task.billing_amount ? task.billing_amount.toFixed(2) : '0.00'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                  <button onClick={() => openEditModal(task)} className="text-blue-600 hover:text-blue-900">
-                    <Edit className="h-5 w-5 inline" />
-                  </button>
-                  <button onClick={() => openConfirmationModal(task)} className="text-red-600 hover:text-red-900">
-                    <Trash2 className="h-5 w-5 inline" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {isModalOpen && (
-        <Modal
-          title={currentTask?.id ? 'Edit Task' : 'Add Task'}
-          onClose={() => setIsModalOpen(false)}
-        >
-          <form onSubmit={handleAddOrUpdate} className="space-y-4">
+    <PageContainer
+      pageTitle="Tasks"
+      actionButtonText="Add Task"
+      onActionButtonClick={() => {
+        setEditingTask(null);
+        setFormState({
+          title: '',
+          status: 'To Do',
+          description: '',
+          due_date: '',
+          priority: 'Medium',
+          assign_to_employee: null,
+          assign_to_customer: null,
+          billing_amount: 0,
+        });
+        setShowModal(true);
+      }}
+    >
+      <Table data={tasks} columns={columns} onEdit={handleEdit} onDelete={handleDeleteTask} />
+      {showModal && (
+        <Modal title={editingTask ? "Edit Task" : "Add Task"} onClose={() => setShowModal(false)}>
+          <form onSubmit={editingTask ? handleUpdateTask : handleAddTask}>
             <FormInput
               label="Title"
               id="title"
               name="title"
-              value={currentTask?.title || ''}
-              onChange={(e) => setCurrentTask({ ...currentTask!, title: e.target.value })}
+              value={formState.title}
+              onChange={(e) => setFormState({ ...formState, title: e.target.value })}
               required
             />
-            <div className="grid grid-cols-2 gap-4">
-              <FormSelect
-                label="Status"
-                id="status"
-                name="status"
-                value={currentTask?.status || 'To Do'}
-                onChange={(e) => setCurrentTask({ ...currentTask!, status: e.target.value as 'To Do' | 'In Progress' | 'Completed' })}
-                options={[{ value: 'To Do', label: 'To Do' }, { value: 'In Progress', label: 'In Progress' }, { value: 'Completed', label: 'Completed' }]}
-                required
-              />
-              <FormSelect
-                label="Priority"
-                id="priority"
-                name="priority"
-                value={currentTask?.priority || 'Medium'}
-                onChange={(e) => setCurrentTask({ ...currentTask!, priority: e.target.value as 'Low' | 'Medium' | 'High' | 'Urgent' })}
-                options={[{ value: 'Low', label: 'Low' }, { value: 'Medium', label: 'Medium' }, { value: 'High', label: 'High' }, { value: 'Urgent', label: 'Urgent' }]}
-                required
-              />
-            </div>
-            <FormInput
+            <FormSelect
+              label="Status"
+              id="status"
+              name="status"
+              value={formState.status}
+              onChange={(e) => setFormState({ ...formState, status: e.target.value as 'To Do' | 'In Progress' | 'Completed' })}
+              options={[
+                { value: 'To Do', label: 'To Do' },
+                { value: 'In Progress', label: 'In Progress' },
+                { value: 'Completed', label: 'Completed' },
+              ]}
+              required
+            />
+            <FormSelect
+              label="Priority"
+              id="priority"
+              name="priority"
+              value={formState.priority}
+              onChange={(e) => setFormState({ ...formState, priority: e.target.value as 'Low' | 'Medium' | 'High' | 'Urgent' })}
+              options={[
+                { value: 'Low', label: 'Low' },
+                { value: 'Medium', label: 'Medium' },
+                { value: 'High', label: 'High' },
+                { value: 'Urgent', label: 'Urgent' },
+              ]}
+              required
+            />
+            <FormTextarea
               label="Description"
               id="description"
               name="description"
-              type="textarea"
-              value={currentTask?.description || ''}
-              onChange={(e) => setCurrentTask({ ...currentTask!, description: e.target.value })}
+              value={formState.description}
+              onChange={(e) => setFormState({ ...formState, description: e.target.value })}
+              required
             />
             <FormInput
               label="Due Date"
               id="due_date"
               name="due_date"
               type="date"
-              value={currentTask?.due_date || new Date().toISOString().split('T')[0]}
-              onChange={(e) => setCurrentTask({ ...currentTask!, due_date: e.target.value })}
+              value={formState.due_date}
+              onChange={(e) => setFormState({ ...formState, due_date: e.target.value })}
               required
             />
             <FormInput
-              label="Billing Amount ($)"
+              label="Billing Amount"
               id="billing_amount"
               name="billing_amount"
               type="number"
-              value={currentTask?.billing_amount || ''}
-              onChange={(e) => setCurrentTask({ ...currentTask!, billing_amount: parseFloat(e.target.value) })}
+              value={formState.billing_amount || ''}
+              onChange={(e) => setFormState({ ...formState, billing_amount: parseFloat(e.target.value) || 0 })}
             />
             <FormSelect
               label="Assign to Employee"
               id="assign_to_employee"
               name="assign_to_employee"
-              value={currentTask?.assign_to_employee || ''}
-              onChange={(e) => setCurrentTask({ ...currentTask!, assign_to_employee: e.target.value ? Number(e.target.value) : null })}
-              options={[{ value: '', label: 'Unassigned' }, ...employees.map(e => ({ value: e.id, label: e.full_name }))]}
+              value={formState.assign_to_employee}
+              onChange={(e) => setFormState({ ...formState, assign_to_employee: parseInt(e.target.value) })}
+              options={[{ value: 0, label: 'Unassigned' }, ...employees.map(e => ({ value: e.id, label: e.full_name }))]}
             />
             <FormSelect
               label="Assign to Customer"
               id="assign_to_customer"
               name="assign_to_customer"
-              value={currentTask?.assign_to_customer || ''}
-              onChange={(e) => setCurrentTask({ ...currentTask!, assign_to_customer: e.target.value ? Number(e.target.value) : null })}
-              options={[{ value: '', label: 'Unassigned' }, ...customers.map(c => ({ value: c.id, label: c.company_name }))]}
+              value={formState.assign_to_customer}
+              onChange={(e) => setFormState({ ...formState, assign_to_customer: parseInt(e.target.value) })}
+              options={[{ value: 0, label: 'Unassigned' }, ...customers.map(c => ({ value: c.id, label: c.company_name }))]}
             />
-            <div className="flex justify-end pt-4 border-t border-gray-200">
-              <button type="submit" className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-md hover:from-blue-600 hover:to-purple-700 transition-all">
-                Save
+            <div className="flex justify-end mt-6">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="mr-3 px-6 py-2 rounded-full text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-6 py-2 rounded-full font-medium shadow-md hover:bg-blue-700 transition-colors"
+              >
+                {editingTask ? 'Save Changes' : 'Add Task'}
               </button>
             </div>
           </form>
         </Modal>
       )}
+    </PageContainer>
+  );
+};
 
-      <ConfirmationModal
-        isOpen={isConfirmationModalOpen}
-        title="Delete Task"
-        message={`Are you sure you want to delete the task "${currentTask?.title}"? This action cannot be undone.`}
-        onConfirm={handleDelete}
-        onCancel={() => setIsConfirmationModalOpen(false)}
-      />
+
+const ReportsPage = () => {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [reportData, setReportData] = useState<any>(null);
+
+  useEffect(() => {
+    if (supabase) {
+      fetchData();
+    }
+  }, []);
+
+  const fetchData = async () => {
+    if (!supabase) return;
+    const [employeesResponse, tasksResponse] = await Promise.all([
+      supabase.from('employees').select('id, full_name'),
+      supabase.from('tasks').select('*')
+    ]);
+
+    if (employeesResponse.data) setEmployees(employeesResponse.data);
+    if (tasksResponse.data) setTasks(tasksResponse.data);
+  };
+
+  const handleEmployeeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = parseInt(e.target.value);
+    setSelectedEmployeeId(id);
+
+    const employee = employees.find(emp => emp.id === id);
+    if (!employee) {
+      setReportData(null);
+      return;
+    }
+
+    const employeeTasks = tasks.filter(task => task.assign_to_employee === id);
+    const completedTasks = employeeTasks.filter(task => task.status === 'Completed').length;
+    const totalTasks = employeeTasks.length;
+    const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(2) : 0;
+    const totalBillingAmount = employeeTasks.reduce((sum, task) => sum + (task.billing_amount || 0), 0);
+
+    setReportData({
+      employeeName: employee.full_name,
+      totalTasks,
+      completedTasks,
+      inProgressTasks: employeeTasks.filter(task => task.status === 'In Progress').length,
+      toDoTasks: employeeTasks.filter(task => task.status === 'To Do').length,
+      completionRate,
+      totalBillingAmount,
+      tasks: employeeTasks
+    });
+  };
+
+  return (
+    <PageContainer pageTitle="Reports">
+      <div className="bg-white p-6 rounded-2xl shadow-xl mb-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Generate Employee Report</h2>
+        <FormSelect
+          label="Select Employee"
+          id="employee-select-report"
+          name="employee"
+          value={selectedEmployeeId || ''}
+          onChange={handleEmployeeChange}
+          options={employees.map(e => ({ value: e.id, label: e.full_name }))}
+          required
+        />
+      </div>
+
+      {reportData && (
+        <div className="bg-white p-6 rounded-2xl shadow-xl">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Report for {reportData.employeeName}</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card
+              title="Total Tasks"
+              icon={List}
+              value={reportData.totalTasks}
+              description="Total tasks assigned"
+            />
+            <Card
+              title="Completed"
+              icon={FileText}
+              value={reportData.completedTasks}
+              description="Tasks successfully completed"
+            />
+            <Card
+              title="Completion Rate"
+              icon={FilePieChart}
+              value={`${reportData.completionRate}%`}
+              description="Percentage of tasks completed"
+            />
+            <Card
+              title="Total Billed"
+              icon={DollarSign}
+              value={`${reportData.totalBillingAmount}`}
+              description="Total amount from all tasks"
+            />
+          </div>
+
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Task Details</h3>
+          {reportData.tasks.length > 0 ? (
+            <Table 
+              data={reportData.tasks} 
+              columns={[
+                { key: 'title', header: 'Title' },
+                { key: 'status', header: 'Status' },
+                { key: 'due_date', header: 'Due Date' },
+                { key: 'priority', header: 'Priority' },
+                { key: 'billing_amount', header: 'Billing Amount' }
+              ]} 
+            />
+          ) : (
+            <p className="text-gray-500">No tasks assigned to this employee.</p>
+          )}
+
+        </div>
+      )}
     </PageContainer>
   );
 };
@@ -1044,22 +1165,18 @@ const TasksPage: React.FC = () => {
 const App = () => {
   const [currentPage, setCurrentPage] = useState('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(false);
 
   useEffect(() => {
-    if (isSidebarOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
+    if (supabase) {
+      setIsSupabaseConfigured(true);
     }
-    return () => {
-      document.body.style.overflow = 'auto';
-    };
-  }, [isSidebarOpen]);
+  }, []);
 
   const renderPage = () => {
-    if (!supabase) {
+    if (!isSupabaseConfigured) {
       return (
-        <div className="flex items-center justify-center min-h-[calc(100vh-100px)] p-4 text-center bg-white rounded-lg shadow-md">
+        <div className="flex items-center justify-center h-[calc(100vh-100px)] p-4 text-center bg-white rounded-lg shadow-md">
           <p className="text-red-600 font-medium text-lg">
             Supabase is not configured. Please check your environment variables.
           </p>
@@ -1075,6 +1192,8 @@ const App = () => {
         return <CustomersPage />;
       case 'Tasks':
         return <TasksPage />;
+      case 'Reports':
+        return <ReportsPage />;
       default:
         return <DashboardPage />;
     }
@@ -1089,7 +1208,7 @@ const App = () => {
         setIsSidebarOpen={setIsSidebarOpen}
       />
       <div className="flex-1 flex flex-col">
-        <header className="bg-white p-4 flex items-center justify-between shadow-sm border-b border-gray-200 lg:hidden">
+        <header className="bg-white p-4 flex items-center justify-between shadow-sm border-b border-gray-200">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="text-gray-500 hover:text-gray-900 focus:outline-none"
@@ -1099,7 +1218,7 @@ const App = () => {
           <h1 className="text-xl font-bold text-blue-600">TaskTracker</h1>
           <div className="w-6"></div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto">
           {renderPage()}
         </main>
       </div>
