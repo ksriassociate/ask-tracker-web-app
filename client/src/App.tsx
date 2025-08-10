@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Home, Users, Briefcase, FileText, Menu, X, Plus, ChevronUp, ChevronDown, Trash2, Edit, FilePieChart, User, BriefcaseMedical, Landmark, DollarSign, List, Download } from 'lucide-react';
+import { Home, Users, Briefcase, FileText, Menu, X, Plus, ChevronUp, ChevronDown, Trash2, Edit, FilePieChart, User, BriefcaseMedical, Landmark, DollarSign, List, Download, Upload, File } from 'lucide-react';
 import './index.css';
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 // Supabase Client Configuration
 const supabaseUrl: string | undefined = import.meta.env.VITE_SUPABASE_URL;
@@ -160,6 +162,119 @@ const FormTextarea: React.FC<FormTextareaProps> = ({ label, id, name, value, onC
   </div>
 );
 
+// Import Modal Component
+interface ImportModalProps {
+  title: string;
+  onClose: () => void;
+  onImport: (data: any[]) => Promise<void>;
+  fields: string[];
+}
+
+const ImportModal: React.FC<ImportModalProps> = ({ title, onClose, onImport, fields }) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleImportClick = async () => {
+    if (!file) {
+      alert("Please select a file to import.");
+      return;
+    }
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const data = e.target?.result;
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
+      const worksheet = workbook.worksheets[0];
+      const json: any[] = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) { // Skip header row
+          const rowData: any = {};
+          row.eachCell((cell, colNumber) => {
+            const header = worksheet.getRow(1).getCell(colNumber).value as string;
+            rowData[header.toLowerCase().replace(/\s/g, '_')] = cell.value;
+          });
+          json.push(rowData);
+        }
+      });
+      await onImport(json);
+      setLoading(false);
+      onClose();
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  return (
+    <Modal title={title} onClose={onClose}>
+      <div className="flex flex-col items-center p-4">
+        <div
+          className="border-2 border-dashed border-gray-300 rounded-lg p-6 w-full text-center cursor-pointer hover:border-blue-500 transition-colors"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {file ? (
+            <p className="text-gray-800 font-medium">{file.name}</p>
+          ) : (
+            <>
+              <Upload className="h-10 w-10 text-gray-400 mx-auto" />
+              <p className="mt-2 text-sm text-gray-600">
+                Drag & drop your file here, or click to select
+              </p>
+            </>
+          )}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+            className="hidden"
+          />
+        </div>
+        <p className="mt-4 text-sm text-gray-500">
+          Supported fields: {fields.join(', ')}
+        </p>
+        <div className="flex justify-end mt-6 w-full">
+          <button
+            type="button"
+            onClick={onClose}
+            className="mr-3 px-6 py-2 rounded-full text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleImportClick}
+            disabled={!file || loading}
+            className="bg-blue-600 text-white px-6 py-2 rounded-full font-medium shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Importing...' : 'Import Data'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+
 // Sidebar Component
 interface SidebarProps {
   currentPage: string;
@@ -231,6 +346,10 @@ interface PageContainerProps {
   pageTitle: string;
   actionButtonText?: string;
   onActionButtonClick?: () => void;
+  importButtonText?: string;
+  onImportButtonClick?: () => void;
+  exportButtonText?: string;
+  onExportButtonClick?: () => void;
 }
 
 const PageContainer: React.FC<PageContainerProps> = ({
@@ -238,19 +357,43 @@ const PageContainer: React.FC<PageContainerProps> = ({
   pageTitle,
   actionButtonText,
   onActionButtonClick,
+  importButtonText,
+  onImportButtonClick,
+  exportButtonText,
+  onExportButtonClick,
 }) => (
   <div className="p-6 md:p-8 flex-1 w-full overflow-y-auto">
     <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
       <h1 className="text-3xl font-extrabold text-gray-900">{pageTitle}</h1>
-      {actionButtonText && onActionButtonClick && (
-        <button
-          onClick={onActionButtonClick}
-          className="bg-blue-600 text-white rounded-full px-5 py-2 flex items-center shadow-lg hover:bg-blue-700 transition-colors font-medium transform hover:scale-105"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          <span>{actionButtonText}</span>
-        </button>
-      )}
+      <div className="flex space-x-4">
+        {exportButtonText && onExportButtonClick && (
+          <button
+            onClick={onExportButtonClick}
+            className="bg-gray-200 text-gray-700 rounded-full px-5 py-2 flex items-center shadow-lg hover:bg-gray-300 transition-colors font-medium transform hover:scale-105"
+          >
+            <Download className="h-5 w-5 mr-2" />
+            <span>{exportButtonText}</span>
+          </button>
+        )}
+        {importButtonText && onImportButtonClick && (
+          <button
+            onClick={onImportButtonClick}
+            className="bg-gray-200 text-gray-700 rounded-full px-5 py-2 flex items-center shadow-lg hover:bg-gray-300 transition-colors font-medium transform hover:scale-105"
+          >
+            <Upload className="h-5 w-5 mr-2" />
+            <span>{importButtonText}</span>
+          </button>
+        )}
+        {actionButtonText && onActionButtonClick && (
+          <button
+            onClick={onActionButtonClick}
+            className="bg-blue-600 text-white rounded-full px-5 py-2 flex items-center shadow-lg hover:bg-blue-700 transition-colors font-medium transform hover:scale-105"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            <span>{actionButtonText}</span>
+          </button>
+        )}
+      </div>
     </div>
     {children}
   </div>
@@ -318,7 +461,7 @@ const Table = <T extends { id: number; }>({ data, columns, onEdit, onDelete }: T
   const requestSort = (key: keyof T) => {
     let direction: 'ascending' | 'descending' = 'ascending';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'desce nding';
+      direction = 'descending';
     }
     setSortConfig({ key, direction });
   };
@@ -628,6 +771,7 @@ const EmployeesPage = () => {
 const CustomersPage = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [formState, setFormState] = useState<Omit<Customer, 'id'>>({
     company_name: '',
     contact_person: '',
@@ -695,6 +839,42 @@ const CustomersPage = () => {
     setShowModal(true);
   };
 
+  const handleImportCustomers = async (data: any[]) => {
+    if (!supabase) return;
+    // Map data to match Supabase schema, handling potential case differences
+    const customersToInsert = data.map(item => ({
+      company_name: item['company_name'] || item['Company Name'],
+      contact_person: item['contact_person'] || item['Contact Person'],
+      email: item['email'] || item['Email'],
+      phone_number: item['phone_number'] || item['Phone Number'],
+    }));
+    const { error } = await supabase.from('customers').insert(customersToInsert);
+    if (error) {
+      console.error('Error importing customers:', error);
+    } else {
+      fetchCustomers();
+    }
+  };
+
+  const handleExportCustomers = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Customers');
+
+    // Define columns
+    worksheet.columns = [
+      { header: 'company_name', key: 'company_name', width: 30 },
+      { header: 'contact_person', key: 'contact_person', width: 30 },
+      { header: 'email', key: 'email', width: 40 },
+      { header: 'phone_number', key: 'phone_number', width: 20 },
+    ];
+
+    // Add rows
+    worksheet.addRows(customers);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), 'customers.xlsx');
+  };
+
   const columns = [
     { key: 'company_name', header: 'Company Name' },
     { key: 'contact_person', header: 'Contact Person' },
@@ -711,6 +891,10 @@ const CustomersPage = () => {
         setFormState({ company_name: '', contact_person: '', email: '', phone_number: '' });
         setShowModal(true);
       }}
+      importButtonText="Import Customers"
+      onImportButtonClick={() => setShowImportModal(true)}
+      exportButtonText="Export Customers"
+      onExportButtonClick={handleExportCustomers}
     >
       <Table data={customers} columns={columns} onEdit={handleEdit} onDelete={handleDeleteCustomer} />
       {showModal && (
@@ -767,6 +951,14 @@ const CustomersPage = () => {
           </form>
         </Modal>
       )}
+      {showImportModal && (
+        <ImportModal
+          title="Import Customers from Excel"
+          onClose={() => setShowImportModal(false)}
+          onImport={handleImportCustomers}
+          fields={['company_name', 'contact_person', 'email', 'phone_number']}
+        />
+      )}
     </PageContainer>
   );
 };
@@ -776,6 +968,7 @@ const TasksPage = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [formState, setFormState] = useState<Omit<Task, 'id'>>({
     title: '',
     status: 'To Do',
@@ -808,7 +1001,7 @@ const TasksPage = () => {
 
   const fetchEmployees = async () => {
     if (!supabase) return;
-    const { data, error } = await supabase.from('employees').select('id, full_name');
+    const { data, error } = await supabase.from('employees').select('id, full_name, email');
     if (error) {
       console.error('Error fetching employees:', error);
     } else {
@@ -887,6 +1080,58 @@ const TasksPage = () => {
     setShowModal(true);
   };
 
+  const handleImportTasks = async (data: any[]) => {
+    if (!supabase) return;
+    // Map data to match Supabase schema
+    const tasksToInsert = data.map(item => ({
+      title: item['title'] || item['Title'],
+      status: item['status'] || item['Status'],
+      description: item['description'] || item['Description'],
+      due_date: item['due_date'] || item['Due Date'],
+      priority: item['priority'] || item['Priority'],
+      billing_amount: item['billing_amount'] || item['Billing Amount'],
+      // Assuming 'Employee Email' and 'Customer Company Name' for import, needing lookup
+      assign_to_employee: employees.find(e => e.email === (item['employee_email'] || item['Employee Email']))?.id || null,
+      assign_to_customer: customers.find(c => c.company_name === (item['customer_company_name'] || item['Customer Company Name']))?.id || null,
+    }));
+    const { error } = await supabase.from('tasks').insert(tasksToInsert);
+    if (error) {
+      console.error('Error importing tasks:', error);
+    } else {
+      fetchTasks();
+    }
+  };
+
+  const handleExportTasks = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Tasks');
+
+    // Define columns
+    worksheet.columns = [
+      { header: 'title', key: 'title', width: 30 },
+      { header: 'status', key: 'status', width: 15 },
+      { header: 'description', key: 'description', width: 50 },
+      { header: 'due_date', key: 'due_date', width: 15 },
+      { header: 'priority', key: 'priority', width: 15 },
+      { header: 'billing_amount', key: 'billing_amount', width: 20 },
+      { header: 'assign_to_employee', key: 'assign_to_employee', width: 30 },
+      { header: 'assign_to_customer', key: 'assign_to_customer', width: 30 },
+    ];
+
+    // Map data to include names instead of IDs for clarity in the export
+    const tasksWithNames = tasks.map(task => ({
+      ...task,
+      assign_to_employee: getEmployeeName(task.assign_to_employee),
+      assign_to_customer: getCustomerName(task.assign_to_customer),
+    }));
+
+    // Add rows
+    worksheet.addRows(tasksWithNames);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), 'tasks.xlsx');
+  };
+
   const getEmployeeName = (employeeId: number | null) => {
     const employee = employees.find(e => e.id === employeeId);
     return employee ? employee.full_name : 'Unassigned';
@@ -938,6 +1183,10 @@ const TasksPage = () => {
         });
         setShowModal(true);
       }}
+      importButtonText="Import Tasks"
+      onImportButtonClick={() => setShowImportModal(true)}
+      exportButtonText="Export Tasks"
+      onExportButtonClick={handleExportTasks}
     >
       <Table data={tasks} columns={columns} onEdit={handleEdit} onDelete={handleDeleteTask} />
       {showModal && (
@@ -1037,6 +1286,14 @@ const TasksPage = () => {
           </form>
         </Modal>
       )}
+      {showImportModal && (
+        <ImportModal
+          title="Import Tasks from Excel"
+          onClose={() => setShowImportModal(false)}
+          onImport={handleImportTasks}
+          fields={['title', 'status', 'description', 'due_date', 'priority', 'billing_amount', 'employee_email', 'customer_company_name']}
+        />
+      )}
     </PageContainer>
   );
 };
@@ -1046,6 +1303,8 @@ const ReportsPage = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [reportData, setReportData] = useState<any>(null);
 
   useEffect(() => {
@@ -1065,17 +1324,48 @@ const ReportsPage = () => {
     if (tasksResponse.data) setTasks(tasksResponse.data);
   };
 
-  const handleEmployeeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = parseInt(e.target.value);
-    setSelectedEmployeeId(id);
+  const months = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' },
+  ];
 
-    const employee = employees.find(emp => emp.id === id);
+  const years = [
+    { value: 2023, label: '2023' },
+    { value: 2024, label: '2024' },
+    { value: 2025, label: '2025' },
+  ];
+
+  const handleGenerateReport = () => {
+    if (!selectedEmployeeId || !selectedMonth || !selectedYear) {
+      setReportData(null);
+      return;
+    }
+
+    const employee = employees.find(emp => emp.id === selectedEmployeeId);
     if (!employee) {
       setReportData(null);
       return;
     }
 
-    const employeeTasks = tasks.filter(task => task.assign_to_employee === id);
+    const employeeTasks = tasks.filter(task => {
+      const taskDueDate = new Date(task.due_date);
+      return (
+        task.assign_to_employee === selectedEmployeeId &&
+        taskDueDate.getFullYear() === selectedYear &&
+        (taskDueDate.getMonth() + 1) === selectedMonth
+      );
+    });
+
     const completedTasks = employeeTasks.filter(task => task.status === 'Completed').length;
     const totalTasks = employeeTasks.length;
     const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(2) : 0;
@@ -1089,7 +1379,9 @@ const ReportsPage = () => {
       toDoTasks: employeeTasks.filter(task => task.status === 'To Do').length,
       completionRate,
       totalBillingAmount,
-      tasks: employeeTasks
+      tasks: employeeTasks,
+      month: months.find(m => m.value === selectedMonth)?.label,
+      year: selectedYear
     });
   };
 
@@ -1097,21 +1389,48 @@ const ReportsPage = () => {
     <PageContainer pageTitle="Reports">
       <div className="bg-white p-6 rounded-2xl shadow-xl mb-8">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Generate Employee Report</h2>
-        <FormSelect
-          label="Select Employee"
-          id="employee-select-report"
-          name="employee"
-          value={selectedEmployeeId || ''}
-          onChange={handleEmployeeChange}
-          options={employees.map(e => ({ value: e.id, label: e.full_name }))}
-          required
-        />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormSelect
+            label="Select Employee"
+            id="employee-select-report"
+            name="employee"
+            value={selectedEmployeeId || ''}
+            onChange={(e) => setSelectedEmployeeId(parseInt(e.target.value))}
+            options={employees.map(e => ({ value: e.id, label: e.full_name }))}
+            required
+          />
+          <FormSelect
+            label="Select Month"
+            id="month-select-report"
+            name="month"
+            value={selectedMonth || ''}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+            options={months}
+            required
+          />
+          <FormSelect
+            label="Select Year"
+            id="year-select-report"
+            name="year"
+            value={selectedYear || ''}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            options={years}
+            required
+          />
+        </div>
+        <button
+          onClick={handleGenerateReport}
+          className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-full font-medium shadow-md hover:bg-blue-700 transition-colors transform hover:scale-105"
+        >
+          Generate Report
+        </button>
       </div>
 
       {reportData && (
         <div className="bg-white p-6 rounded-2xl shadow-xl">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Report for {reportData.employeeName}</h2>
-          
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Report for {reportData.employeeName}</h2>
+          <p className="text-gray-500 mb-4 text-lg">For the period: {reportData.month}, {reportData.year}</p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card
               title="Total Tasks"
@@ -1141,18 +1460,18 @@ const ReportsPage = () => {
 
           <h3 className="text-xl font-bold text-gray-800 mb-4">Task Details</h3>
           {reportData.tasks.length > 0 ? (
-            <Table 
-              data={reportData.tasks} 
+            <Table
+              data={reportData.tasks}
               columns={[
                 { key: 'title', header: 'Title' },
                 { key: 'status', header: 'Status' },
                 { key: 'due_date', header: 'Due Date' },
                 { key: 'priority', header: 'Priority' },
                 { key: 'billing_amount', header: 'Billing Amount' }
-              ]} 
+              ]}
             />
           ) : (
-            <p className="text-gray-500">No tasks assigned to this employee.</p>
+            <p className="text-gray-500">No tasks assigned to this employee in the selected period.</p>
           )}
 
         </div>
