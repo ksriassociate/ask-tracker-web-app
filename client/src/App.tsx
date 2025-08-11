@@ -1000,7 +1000,7 @@ const TasksPage = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [emailStatusMessage, setEmailStatusMessage] = useState<string | null>(null);
 
-  const GOOGLE_APPS_SCRIPT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzsg3mufJzG2P3PLbO3ZRU6bKkPjyLp6lKIv_Ggd9tVH5l96v-SfrhEq3wwA0ZFPxh4/exec';
+  const GOOGLE_APPS_SCRIPT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzdPQ3RQrcnsivrq14aaYIygepyZeHhlfDXiTnETkgcJ9kZusmwS9SPLMB6egP6pc_u/exec';
 
   useEffect(() => {
     if (supabase) {
