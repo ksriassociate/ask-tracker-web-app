@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Home, Users, Briefcase, FileText, Menu, X, Plus, ChevronUp, ChevronDown, Trash2, Edit, FilePieChart, User, BriefcaseMedical, Landmark, DollarSign, List, Download, Upload, File } from 'lucide-react';
+import { Home, Users, Briefcase, FileText, Menu, X, Plus, ChevronUp, ChevronDown, Trash2, Edit, FilePieChart, BriefcaseMedical, Landmark, DollarSign, List, Download, Upload } from 'lucide-react';
 import './index.css';
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -119,7 +119,7 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, id, name, value, onChang
       id={id}
       name={name}
       value={value || ''}
-      onChange={onChange}
+      onChange={(e) => onChange(e)}
       required={required}
       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border transition-colors text-gray-900"
     >
@@ -183,7 +183,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ title, onClose, onImport, fie
 
   const handleImportClick = async () => {
     if (!file) {
-      alert("Please select a file to import.");
+      console.error("Please select a file to import.");
       return;
     }
     setLoading(true);
@@ -191,7 +191,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ title, onClose, onImport, fie
     reader.onload = async (e) => {
       const data = e.target?.result;
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(data);
+      // Explicitly cast data to ArrayBuffer for exceljs.load
+      await workbook.xlsx.load(data as ArrayBuffer);
       const worksheet = workbook.worksheets[0];
       const json: any[] = [];
       worksheet.eachRow((row, rowNumber) => {
@@ -553,6 +554,7 @@ const DashboardPage = () => {
   }, []);
 
   const fetchData = async () => {
+    if (!supabase) return;
     try {
       const [employeesResponse, customersResponse, tasksResponse] = await Promise.all([
         supabase.from('employees').select('*'),
@@ -576,30 +578,10 @@ const DashboardPage = () => {
   return (
     <PageContainer pageTitle="Dashboard">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card
-          title="Total Employees"
-          icon={Users}
-          value={employees.length}
-          description="Total number of team members"
-        />
-        <Card
-          title="Total Customers"
-          icon={BriefcaseMedical}
-          value={customers.length}
-          description="Total number of clients"
-        />
-        <Card
-          title="Total Tasks"
-          icon={FileText}
-          value={tasks.length}
-          description="All tasks in the system"
-        />
-        <Card
-          title="Completion Rate"
-          icon={FilePieChart}
-          value={`${completionRate}%`}
-          description="Percentage of tasks completed"
-        />
+        <Card title="Total Employees" icon={Users} value={employees.length} description="Total number of team members" />
+        <Card title="Total Customers" icon={BriefcaseMedical} value={customers.length} description="Total number of clients" />
+        <Card title="Total Tasks" icon={FileText} value={tasks.length} description="All tasks in the system" />
+        <Card title="Completion Rate" icon={FilePieChart} value={`${completionRate}%`} description="Percentage of tasks completed" />
       </div>
       <div className="mt-8 bg-white p-6 rounded-2xl shadow-xl">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Task Overview</h2>
@@ -625,12 +607,7 @@ const DashboardPage = () => {
 const EmployeesPage = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [formState, setFormState] = useState<Omit<Employee, 'id'>>({
-    full_name: '',
-    email: '',
-    position: '',
-    department: '',
-  });
+  const [formState, setFormState] = useState<Omit<Employee, 'id'>>({ full_name: '', email: '', position: '', department: '', });
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
   useEffect(() => {
@@ -692,12 +669,40 @@ const EmployeesPage = () => {
     setShowModal(true);
   };
 
-  const columns = [
+  const columns: { key: keyof Employee; header: string }[] = [
     { key: 'full_name', header: 'Full Name' },
     { key: 'email', header: 'Email' },
     { key: 'position', header: 'Position' },
     { key: 'department', header: 'Department' },
   ];
+
+  const handleImport = async (data: any[]) => {
+    if (!supabase) return;
+    // Removed defaultToNull and ignoreDuplicates as they are not valid options for insert
+    const { error } = await supabase.from('employees').insert(data);
+    if (error) {
+      console.error('Error importing employees:', error);
+    } else {
+      fetchEmployees();
+    }
+  };
+
+  const exportEmployees = () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Employees');
+    worksheet.columns = columns.map(col => ({
+      header: col.header,
+      key: String(col.key),
+      width: 20
+    }));
+    worksheet.addRows(employees);
+    workbook.xlsx.writeBuffer().then(buffer => {
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, 'employees.xlsx');
+    });
+  };
+
+  const [showImportModal, setShowImportModal] = useState(false);
 
   return (
     <PageContainer
@@ -708,10 +713,19 @@ const EmployeesPage = () => {
         setFormState({ full_name: '', email: '', position: '', department: '' });
         setShowModal(true);
       }}
+      importButtonText="Import Employees"
+      onImportButtonClick={() => setShowImportModal(true)}
+      exportButtonText="Export Employees"
+      onExportButtonClick={exportEmployees}
     >
-      <Table data={employees} columns={columns} onEdit={handleEdit} onDelete={handleDeleteEmployee} />
+      <Table<Employee>
+        data={employees}
+        columns={columns}
+        onEdit={handleEdit}
+        onDelete={handleDeleteEmployee}
+      />
       {showModal && (
-        <Modal title={editingEmployee ? "Edit Employee" : "Add Employee"} onClose={() => setShowModal(false)}>
+        <Modal title={editingEmployee ? 'Edit Employee' : 'Add Employee'} onClose={() => setShowModal(false)}>
           <form onSubmit={editingEmployee ? handleUpdateEmployee : handleAddEmployee}>
             <FormInput
               label="Full Name"
@@ -758,11 +772,19 @@ const EmployeesPage = () => {
                 type="submit"
                 className="bg-blue-600 text-white px-6 py-2 rounded-full font-medium shadow-md hover:bg-blue-700 transition-colors"
               >
-                {editingEmployee ? 'Save Changes' : 'Add Employee'}
+                {editingEmployee ? 'Update Employee' : 'Add Employee'}
               </button>
             </div>
           </form>
         </Modal>
+      )}
+      {showImportModal && (
+        <ImportModal
+          title="Import Employees"
+          onClose={() => setShowImportModal(false)}
+          onImport={handleImport}
+          fields={columns.map(c => String(c.key))}
+        />
       )}
     </PageContainer>
   );
@@ -771,7 +793,6 @@ const EmployeesPage = () => {
 const CustomersPage = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [formState, setFormState] = useState<Omit<Customer, 'id'>>({
     company_name: '',
     contact_person: '',
@@ -839,16 +860,17 @@ const CustomersPage = () => {
     setShowModal(true);
   };
 
-  const handleImportCustomers = async (data: any[]) => {
+  const columns: { key: keyof Customer; header: string }[] = [
+    { key: 'company_name', header: 'Company Name' },
+    { key: 'contact_person', header: 'Contact Person' },
+    { key: 'email', header: 'Email' },
+    { key: 'phone_number', header: 'Phone Number' },
+  ];
+
+  const handleImport = async (data: any[]) => {
     if (!supabase) return;
-    // Map data to match Supabase schema, handling potential case differences
-    const customersToInsert = data.map(item => ({
-      company_name: item['company_name'] || item['Company Name'],
-      contact_person: item['contact_person'] || item['Contact Person'],
-      email: item['email'] || item['Email'],
-      phone_number: item['phone_number'] || item['Phone Number'],
-    }));
-    const { error } = await supabase.from('customers').insert(customersToInsert);
+    // Removed defaultToNull and ignoreDuplicates as they are not valid options for insert
+    const { error } = await supabase.from('customers').insert(data);
     if (error) {
       console.error('Error importing customers:', error);
     } else {
@@ -856,31 +878,22 @@ const CustomersPage = () => {
     }
   };
 
-  const handleExportCustomers = async () => {
+  const exportCustomers = () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Customers');
-
-    // Define columns
-    worksheet.columns = [
-      { header: 'company_name', key: 'company_name', width: 30 },
-      { header: 'contact_person', key: 'contact_person', width: 30 },
-      { header: 'email', key: 'email', width: 40 },
-      { header: 'phone_number', key: 'phone_number', width: 20 },
-    ];
-
-    // Add rows
+    worksheet.columns = columns.map(col => ({
+      header: col.header,
+      key: String(col.key),
+      width: 20
+    }));
     worksheet.addRows(customers);
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), 'customers.xlsx');
+    workbook.xlsx.writeBuffer().then(buffer => {
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, 'customers.xlsx');
+    });
   };
 
-  const columns = [
-    { key: 'company_name', header: 'Company Name' },
-    { key: 'contact_person', header: 'Contact Person' },
-    { key: 'email', header: 'Email' },
-    { key: 'phone_number', header: 'Phone Number' },
-  ];
+  const [showImportModal, setShowImportModal] = useState(false);
 
   return (
     <PageContainer
@@ -894,11 +907,16 @@ const CustomersPage = () => {
       importButtonText="Import Customers"
       onImportButtonClick={() => setShowImportModal(true)}
       exportButtonText="Export Customers"
-      onExportButtonClick={handleExportCustomers}
+      onExportButtonClick={exportCustomers}
     >
-      <Table data={customers} columns={columns} onEdit={handleEdit} onDelete={handleDeleteCustomer} />
+      <Table<Customer>
+        data={customers}
+        columns={columns}
+        onEdit={handleEdit}
+        onDelete={handleDeleteCustomer}
+      />
       {showModal && (
-        <Modal title={editingCustomer ? "Edit Customer" : "Add Customer"} onClose={() => setShowModal(false)}>
+        <Modal title={editingCustomer ? 'Edit Customer' : 'Add Customer'} onClose={() => setShowModal(false)}>
           <form onSubmit={editingCustomer ? handleUpdateCustomer : handleAddCustomer}>
             <FormInput
               label="Company Name"
@@ -945,7 +963,7 @@ const CustomersPage = () => {
                 type="submit"
                 className="bg-blue-600 text-white px-6 py-2 rounded-full font-medium shadow-md hover:bg-blue-700 transition-colors"
               >
-                {editingCustomer ? 'Save Changes' : 'Add Customer'}
+                {editingCustomer ? 'Update Customer' : 'Add Customer'}
               </button>
             </div>
           </form>
@@ -953,114 +971,150 @@ const CustomersPage = () => {
       )}
       {showImportModal && (
         <ImportModal
-          title="Import Customers from Excel"
+          title="Import Customers"
           onClose={() => setShowImportModal(false)}
-          onImport={handleImportCustomers}
-          fields={['company_name', 'contact_person', 'email', 'phone_number']}
+          onImport={handleImport}
+          fields={columns.map(c => String(c.key))}
         />
       )}
     </PageContainer>
   );
 };
 
+
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [formState, setFormState] = useState<Omit<Task, 'id'>>({
     title: '',
     status: 'To Do',
     description: '',
     due_date: '',
-    priority: 'Medium',
+    priority: 'Low',
     assign_to_employee: null,
     assign_to_customer: null,
-    billing_amount: 0,
+    billing_amount: undefined,
   });
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [emailStatusMessage, setEmailStatusMessage] = useState<string | null>(null);
+
+  const GOOGLE_APPS_SCRIPT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwr9ey1vqtW_baFZochGI-WrfNL8NfuyYqFg_FlJ2vs0N7LcP5ET9pNRWS7frSM2c9o/exec';
 
   useEffect(() => {
     if (supabase) {
-      fetchTasks();
-      fetchEmployees();
-      fetchCustomers();
+      fetchData();
     }
   }, []);
 
-  const fetchTasks = async () => {
+  const fetchData = async () => {
     if (!supabase) return;
-    const { data, error } = await supabase.from('tasks').select('*');
-    if (error) {
-      console.error('Error fetching tasks:', error);
-    } else {
-      setTasks(data);
+    try {
+      const [tasksResponse, employeesResponse, customersResponse] = await Promise.all([
+        supabase.from('tasks').select('*'),
+        supabase.from('employees').select('*'),
+        supabase.from('customers').select('*')
+      ]);
+
+      if (tasksResponse.data) setTasks(tasksResponse.data);
+      if (employeesResponse.data) setEmployees(employeesResponse.data);
+      if (customersResponse.data) setCustomers(customersResponse.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
     }
   };
 
-  const fetchEmployees = async () => {
-    if (!supabase) return;
-    const { data, error } = await supabase.from('employees').select('id, full_name, email');
-    if (error) {
-      console.error('Error fetching employees:', error);
-    } else {
-      setEmployees(data);
-    }
-  };
+  // Function to send completion email via Google Apps Script Web App
+  const sendCompletionEmail = async (task: Task, customer: Customer) => {
+    console.log(`Attempting to send email for task ID: ${task.id} to customer: ${customer.email} using Google Sheets.`);
 
-  const fetchCustomers = async () => {
-    if (!supabase) return;
-    const { data, error } = await supabase.from('customers').select('id, company_name');
-    if (error) {
-      console.error('Error fetching customers:', error);
-    } else {
-      setCustomers(data);
+    // Removed the placeholder check as the URL should now be correctly set
+    // if (GOOGLE_APPS_SCRIPT_WEB_APP_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL' || !GOOGLE_APPS_SCRIPT_WEB_APP_URL) {
+    //   setEmailStatusMessage('Error: Google Apps Script Web App URL is not configured.');
+    //   console.error('Google Apps Script Web App URL is not configured. Please update App.tsx with your deployed URL.');
+    //   setTimeout(() => setEmailStatusMessage(null), 5000);
+    //   return;
+    // }
+
+    try {
+      const response = await fetch(GOOGLE_APPS_SCRIPT_WEB_APP_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerEmail: customer.email,
+          natureOfWork: task.title, // You might want to send more task details here
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to trigger email from Google Sheet.');
+      }
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        setEmailStatusMessage(`Email trigger sent to Google Sheet for ${customer.email}`);
+        console.log('Email successfully triggered via Google Sheet.');
+      } else {
+        throw new Error(result.message || 'Failed to trigger email from Google Sheet.');
+      }
+
+    } catch (error) {
+      console.error('Error sending email via Google Sheet:', error);
+      setEmailStatusMessage('Failed to trigger email via Google Sheet.');
+    } finally {
+      // Clear the message after a few seconds
+      setTimeout(() => setEmailStatusMessage(null), 5000);
     }
   };
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
-    const { error } = await supabase.from('tasks').insert([formState]);
+    // Removed defaultToNull and ignoreDuplicates as they are not valid options for insert
+    const { error } = await supabase.from('tasks').insert([{ ...formState, billing_amount: formState.billing_amount || null }]);
     if (error) {
       console.error('Error adding task:', error);
     } else {
       setFormState({
-        title: '',
-        status: 'To Do',
-        description: '',
-        due_date: '',
-        priority: 'Medium',
-        assign_to_employee: null,
-        assign_to_customer: null,
-        billing_amount: 0,
+        title: '', status: 'To Do', description: '', due_date: '', priority: 'Low', assign_to_employee: null, assign_to_customer: null, billing_amount: undefined,
       });
       setShowModal(false);
-      fetchTasks();
+      fetchData();
     }
   };
 
   const handleUpdateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !editingTask) return;
-    const { error } = await supabase.from('tasks').update(formState).eq('id', editingTask.id);
+
+    const oldStatus = editingTask.status;
+
+    const { error } = await supabase.from('tasks').update({ ...formState, billing_amount: formState.billing_amount || null }).eq('id', editingTask.id);
     if (error) {
       console.error('Error updating task:', error);
     } else {
+      // Check if the status was changed to 'Completed' and if a customer is assigned
+      if (formState.status === 'Completed' && oldStatus !== 'Completed' && formState.assign_to_customer) {
+        // Find the customer and send the email
+        const customer = customers.find(c => c.id === formState.assign_to_customer);
+        if (customer) {
+          await sendCompletionEmail(editingTask, customer);
+        } else {
+          console.error(`Customer with ID ${formState.assign_to_customer} not found.`);
+          setEmailStatusMessage('Could not find customer to send email.');
+          setTimeout(() => setEmailStatusMessage(null), 5000);
+        }
+      }
+
       setFormState({
-        title: '',
-        status: 'To Do',
-        description: '',
-        due_date: '',
-        priority: 'Medium',
-        assign_to_employee: null,
-        assign_to_customer: null,
-        billing_amount: 0,
+        title: '', status: 'To Do', description: '', due_date: '', priority: 'Low', assign_to_employee: null, assign_to_customer: null, billing_amount: undefined,
       });
       setEditingTask(null);
       setShowModal(false);
-      fetchTasks();
+      fetchData();
     }
   };
 
@@ -1070,100 +1124,126 @@ const TasksPage = () => {
     if (error) {
       console.error('Error deleting task:', error);
     } else {
-      fetchTasks();
+      fetchData();
     }
   };
 
   const handleEdit = (task: Task) => {
     setEditingTask(task);
-    setFormState(task);
+    setFormState({
+      title: task.title,
+      status: task.status,
+      description: task.description,
+      due_date: task.due_date,
+      priority: task.priority,
+      assign_to_employee: task.assign_to_employee,
+      assign_to_customer: task.assign_to_customer,
+      billing_amount: task.billing_amount,
+    });
     setShowModal(true);
   };
 
-  const handleImportTasks = async (data: any[]) => {
-    if (!supabase) return;
-    // Map data to match Supabase schema
-    const tasksToInsert = data.map(item => ({
-      title: item['title'] || item['Title'],
-      status: item['status'] || item['Status'],
-      description: item['description'] || item['Description'],
-      due_date: item['due_date'] || item['Due Date'],
-      priority: item['priority'] || item['Priority'],
-      billing_amount: item['billing_amount'] || item['Billing Amount'],
-      // Assuming 'Employee Email' and 'Customer Company Name' for import, needing lookup
-      assign_to_employee: employees.find(e => e.email === (item['employee_email'] || item['Employee Email']))?.id || null,
-      assign_to_customer: customers.find(c => c.company_name === (item['customer_company_name'] || item['Customer Company Name']))?.id || null,
-    }));
-    const { error } = await supabase.from('tasks').insert(tasksToInsert);
-    if (error) {
-      console.error('Error importing tasks:', error);
-    } else {
-      fetchTasks();
-    }
-  };
-
-  const handleExportTasks = async () => {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Tasks');
-
-    // Define columns
-    worksheet.columns = [
-      { header: 'title', key: 'title', width: 30 },
-      { header: 'status', key: 'status', width: 15 },
-      { header: 'description', key: 'description', width: 50 },
-      { header: 'due_date', key: 'due_date', width: 15 },
-      { header: 'priority', key: 'priority', width: 15 },
-      { header: 'billing_amount', key: 'billing_amount', width: 20 },
-      { header: 'assign_to_employee', key: 'assign_to_employee', width: 30 },
-      { header: 'assign_to_customer', key: 'assign_to_customer', width: 30 },
-    ];
-
-    // Map data to include names instead of IDs for clarity in the export
-    const tasksWithNames = tasks.map(task => ({
-      ...task,
-      assign_to_employee: getEmployeeName(task.assign_to_employee),
-      assign_to_customer: getCustomerName(task.assign_to_customer),
-    }));
-
-    // Add rows
-    worksheet.addRows(tasksWithNames);
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), 'tasks.xlsx');
-  };
-
-  const getEmployeeName = (employeeId: number | null) => {
-    const employee = employees.find(e => e.id === employeeId);
-    return employee ? employee.full_name : 'Unassigned';
-  };
-
-  const getCustomerName = (customerId: number | null) => {
-    const customer = customers.find(c => c.id === customerId);
-    return customer ? customer.company_name : 'Unassigned';
-  };
-
-  const columns = [
+  const columns: { key: keyof Task; header: string; render?: (item: Task) => React.ReactNode }[] = [
     { key: 'title', header: 'Title' },
-    { key: 'description', header: 'Description' },
-    { key: 'status', header: 'Status' },
-    { key: 'priority', header: 'Priority' },
-    { key: 'due_date', header: 'Due Date' },
     {
-      key: 'billing_amount',
-      header: 'Billing Amount',
-      render: (item: Task) => (item.billing_amount ? `${item.billing_amount}` : 'N/A')
+      key: 'status',
+      header: 'Status',
+      render: (task: Task) => {
+        let colorClass = '';
+        switch (task.status) {
+          case 'To Do':
+            colorClass = 'bg-gray-200 text-gray-800';
+            break;
+          case 'In Progress':
+            colorClass = 'bg-yellow-200 text-yellow-800';
+            break;
+          case 'Completed':
+            colorClass = 'bg-green-200 text-green-800';
+            break;
+        }
+        return (
+          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${colorClass}`}>
+            {task.status}
+          </span>
+        );
+      },
     },
     {
+      key: 'priority',
+      header: 'Priority',
+      render: (task: Task) => {
+        let colorClass = '';
+        switch (task.priority) {
+          case 'Low':
+            colorClass = 'bg-gray-100 text-gray-700';
+            break;
+          case 'Medium':
+            colorClass = 'bg-blue-100 text-blue-700';
+            break;
+          case 'High':
+            colorClass = 'bg-orange-100 text-orange-700';
+            break;
+          case 'Urgent':
+            colorClass = 'bg-red-100 text-red-700';
+            break;
+        }
+        return (
+          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${colorClass}`}>
+            {task.priority}
+          </span>
+        );
+      },
+    },
+    { key: 'due_date', header: 'Due Date' },
+    {
       key: 'assign_to_employee',
-      header: 'Assigned To (Employee)',
-      render: (item: Task) => getEmployeeName(item.assign_to_employee)
+      header: 'Assigned To',
+      render: (task: Task) => {
+        const employee = employees.find(e => e.id === task.assign_to_employee);
+        return employee ? employee.full_name : 'N/A';
+      },
     },
     {
       key: 'assign_to_customer',
-      header: 'Assigned To (Customer)',
-      render: (item: Task) => getCustomerName(item.assign_to_customer)
-    }
+      header: 'Customer',
+      render: (task: Task) => {
+        const customer = customers.find(c => c.id === task.assign_to_customer);
+        return customer ? customer.company_name : 'N/A';
+      },
+    },
   ];
+
+  const handleImport = async (data: any[]) => {
+    if (!supabase) return;
+    // Removed defaultToNull and ignoreDuplicates as they are not valid options for insert
+    const { error } = await supabase.from('tasks').insert(data);
+    if (error) {
+      console.error('Error importing tasks:', error);
+    } else {
+      fetchData();
+    }
+  };
+
+  const exportTasks = () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Tasks');
+    worksheet.columns = columns.map(col => ({
+      header: col.header,
+      key: String(col.key), // Ensure this matches actual column keys for export
+      width: 20
+    }));
+    worksheet.addRows(tasks.map(task => ({
+      ...task,
+      assign_to_employee: employees.find(e => e.id === task.assign_to_employee)?.full_name || 'N/A',
+      assign_to_customer: customers.find(c => c.id === task.assign_to_customer)?.company_name || 'N/A'
+    })));
+    workbook.xlsx.writeBuffer().then(buffer => {
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, 'tasks.xlsx');
+    });
+  };
+
+  const [showImportModal, setShowImportModal] = useState(false);
 
   return (
     <PageContainer
@@ -1172,25 +1252,28 @@ const TasksPage = () => {
       onActionButtonClick={() => {
         setEditingTask(null);
         setFormState({
-          title: '',
-          status: 'To Do',
-          description: '',
-          due_date: '',
-          priority: 'Medium',
-          assign_to_employee: null,
-          assign_to_customer: null,
-          billing_amount: 0,
+          title: '', status: 'To Do', description: '', due_date: '', priority: 'Low', assign_to_employee: null, assign_to_customer: null, billing_amount: undefined,
         });
         setShowModal(true);
       }}
       importButtonText="Import Tasks"
       onImportButtonClick={() => setShowImportModal(true)}
       exportButtonText="Export Tasks"
-      onExportButtonClick={handleExportTasks}
+      onExportButtonClick={exportTasks}
     >
-      <Table data={tasks} columns={columns} onEdit={handleEdit} onDelete={handleDeleteTask} />
+      {emailStatusMessage && (
+        <div className={`p-4 mb-4 text-sm rounded-lg ${emailStatusMessage.includes('Failed') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+          {emailStatusMessage}
+        </div>
+      )}
+      <Table<Task>
+        data={tasks}
+        columns={columns}
+        onEdit={handleEdit}
+        onDelete={handleDeleteTask}
+      />
       {showModal && (
-        <Modal title={editingTask ? "Edit Task" : "Add Task"} onClose={() => setShowModal(false)}>
+        <Modal title={editingTask ? 'Edit Task' : 'Add Task'} onClose={() => setShowModal(false)}>
           <form onSubmit={editingTask ? handleUpdateTask : handleAddTask}>
             <FormInput
               label="Title"
@@ -1205,25 +1288,11 @@ const TasksPage = () => {
               id="status"
               name="status"
               value={formState.status}
-              onChange={(e) => setFormState({ ...formState, status: e.target.value as 'To Do' | 'In Progress' | 'Completed' })}
+              onChange={(e) => setFormState({ ...formState, status: e.target.value as Task['status'] })}
               options={[
                 { value: 'To Do', label: 'To Do' },
                 { value: 'In Progress', label: 'In Progress' },
                 { value: 'Completed', label: 'Completed' },
-              ]}
-              required
-            />
-            <FormSelect
-              label="Priority"
-              id="priority"
-              name="priority"
-              value={formState.priority}
-              onChange={(e) => setFormState({ ...formState, priority: e.target.value as 'Low' | 'Medium' | 'High' | 'Urgent' })}
-              options={[
-                { value: 'Low', label: 'Low' },
-                { value: 'Medium', label: 'Medium' },
-                { value: 'High', label: 'High' },
-                { value: 'Urgent', label: 'Urgent' },
               ]}
               required
             />
@@ -1244,29 +1313,43 @@ const TasksPage = () => {
               onChange={(e) => setFormState({ ...formState, due_date: e.target.value })}
               required
             />
-            <FormInput
-              label="Billing Amount"
-              id="billing_amount"
-              name="billing_amount"
-              type="number"
-              value={formState.billing_amount || ''}
-              onChange={(e) => setFormState({ ...formState, billing_amount: parseFloat(e.target.value) || 0 })}
+            <FormSelect
+              label="Priority"
+              id="priority"
+              name="priority"
+              value={formState.priority}
+              onChange={(e) => setFormState({ ...formState, priority: e.target.value as Task['priority'] })}
+              options={[
+                { value: 'Low', label: 'Low' },
+                { value: 'Medium', label: 'Medium' },
+                { value: 'High', label: 'High' },
+                { value: 'Urgent', label: 'Urgent' },
+              ]}
+              required
             />
             <FormSelect
               label="Assign to Employee"
               id="assign_to_employee"
               name="assign_to_employee"
               value={formState.assign_to_employee}
-              onChange={(e) => setFormState({ ...formState, assign_to_employee: parseInt(e.target.value) })}
-              options={[{ value: 0, label: 'Unassigned' }, ...employees.map(e => ({ value: e.id, label: e.full_name }))]}
+              onChange={(e) => setFormState({ ...formState, assign_to_employee: e.target.value ? Number(e.target.value) : null })}
+              options={employees.map(e => ({ value: e.id, label: e.full_name }))}
             />
             <FormSelect
               label="Assign to Customer"
               id="assign_to_customer"
               name="assign_to_customer"
               value={formState.assign_to_customer}
-              onChange={(e) => setFormState({ ...formState, assign_to_customer: parseInt(e.target.value) })}
-              options={[{ value: 0, label: 'Unassigned' }, ...customers.map(c => ({ value: c.id, label: c.company_name }))]}
+              onChange={(e) => setFormState({ ...formState, assign_to_customer: e.target.value ? Number(e.target.value) : null })}
+              options={customers.map(c => ({ value: c.id, label: c.company_name }))}
+            />
+            <FormInput
+              label="Billing Amount"
+              id="billing_amount"
+              name="billing_amount"
+              type="number"
+              value={formState.billing_amount || ''}
+              onChange={(e) => setFormState({ ...formState, billing_amount: e.target.value ? Number(e.target.value) : undefined })}
             />
             <div className="flex justify-end mt-6">
               <button
@@ -1280,7 +1363,7 @@ const TasksPage = () => {
                 type="submit"
                 className="bg-blue-600 text-white px-6 py-2 rounded-full font-medium shadow-md hover:bg-blue-700 transition-colors"
               >
-                {editingTask ? 'Save Changes' : 'Add Task'}
+                {editingTask ? 'Update Task' : 'Add Task'}
               </button>
             </div>
           </form>
@@ -1288,10 +1371,10 @@ const TasksPage = () => {
       )}
       {showImportModal && (
         <ImportModal
-          title="Import Tasks from Excel"
+          title="Import Tasks"
           onClose={() => setShowImportModal(false)}
-          onImport={handleImportTasks}
-          fields={['title', 'status', 'description', 'due_date', 'priority', 'billing_amount', 'employee_email', 'customer_company_name']}
+          onImport={handleImport}
+          fields={columns.map(c => String(c.key))}
         />
       )}
     </PageContainer>
@@ -1300,12 +1383,8 @@ const TasksPage = () => {
 
 
 const ReportsPage = () => {
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [reportData, setReportData] = useState<any>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   useEffect(() => {
     if (supabase) {
@@ -1315,167 +1394,114 @@ const ReportsPage = () => {
 
   const fetchData = async () => {
     if (!supabase) return;
-    const [employeesResponse, tasksResponse] = await Promise.all([
-      supabase.from('employees').select('id, full_name'),
-      supabase.from('tasks').select('*')
-    ]);
+    try {
+      const [tasksResponse, customersResponse] = await Promise.all([ // Removed employeesResponse
+        supabase.from('tasks').select('*'),
+        // Removed supabase.from('employees').select('*') as it's not used in this component's data
+        supabase.from('customers').select('*')
+      ]);
 
-    if (employeesResponse.data) setEmployees(employeesResponse.data);
-    if (tasksResponse.data) setTasks(tasksResponse.data);
+      if (tasksResponse.data) setTasks(tasksResponse.data);
+      if (customersResponse.data) setCustomers(customersResponse.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
   };
 
-  const months = [
-    { value: 1, label: 'January' },
-    { value: 2, label: 'February' },
-    { value: 3, label: 'March' },
-    { value: 4, label: 'April' },
-    { value: 5, label: 'May' },
-    { value: 6, label: 'June' },
-    { value: 7, label: 'July' },
-    { value: 8, label: 'August' },
-    { value: 9, label: 'September' },
-    { value: 10, label: 'October' },
-    { value: 11, label: 'November' },
-    { value: 12, label: 'December' },
-  ];
+  const tasksByCustomer = customers.map(customer => ({
+    ...customer,
+    tasks: tasks.filter(task => task.assign_to_customer === customer.id),
+  }));
 
-  const years = [
-    { value: 2023, label: '2023' },
-    { value: 2024, label: '2024' },
-    { value: 2025, label: '2025' },
-  ];
+  const totalBilling = tasks.reduce((sum, task) => sum + (task.billing_amount || 0), 0);
 
-  const handleGenerateReport = () => {
-    if (!selectedEmployeeId || !selectedMonth || !selectedYear) {
-      setReportData(null);
-      return;
-    }
-
-    const employee = employees.find(emp => emp.id === selectedEmployeeId);
-    if (!employee) {
-      setReportData(null);
-      return;
-    }
-
-    const employeeTasks = tasks.filter(task => {
-      const taskDueDate = new Date(task.due_date);
-      return (
-        task.assign_to_employee === selectedEmployeeId &&
-        taskDueDate.getFullYear() === selectedYear &&
-        (taskDueDate.getMonth() + 1) === selectedMonth
-      );
-    });
-
-    const completedTasks = employeeTasks.filter(task => task.status === 'Completed').length;
-    const totalTasks = employeeTasks.length;
-    const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(2) : 0;
-    const totalBillingAmount = employeeTasks.reduce((sum, task) => sum + (task.billing_amount || 0), 0);
-
-    setReportData({
-      employeeName: employee.full_name,
-      totalTasks,
-      completedTasks,
-      inProgressTasks: employeeTasks.filter(task => task.status === 'In Progress').length,
-      toDoTasks: employeeTasks.filter(task => task.status === 'To Do').length,
-      completionRate,
-      totalBillingAmount,
-      tasks: employeeTasks,
-      month: months.find(m => m.value === selectedMonth)?.label,
-      year: selectedYear
+  const exportReports = () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Task Reports');
+    worksheet.columns = [
+      { header: 'Customer', key: 'customer', width: 30 },
+      { header: 'Total Tasks', key: 'total_tasks', width: 15 },
+      { header: 'Completed Tasks', key: 'completed_tasks', width: 20 },
+      { header: 'Total Billed Amount', key: 'billed_amount', width: 25 },
+    ];
+    worksheet.addRows(tasksByCustomer.map(c => ({
+      customer: c.company_name,
+      total_tasks: c.tasks.length,
+      completed_tasks: c.tasks.filter(t => t.status === 'Completed').length,
+      billed_amount: c.tasks.reduce((sum, t) => sum + (t.billing_amount || 0), 0),
+    })));
+    workbook.xlsx.writeBuffer().then(buffer => {
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, 'task_reports.xlsx');
     });
   };
 
   return (
-    <PageContainer pageTitle="Reports">
-      <div className="bg-white p-6 rounded-2xl shadow-xl mb-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Generate Employee Report</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormSelect
-            label="Select Employee"
-            id="employee-select-report"
-            name="employee"
-            value={selectedEmployeeId || ''}
-            onChange={(e) => setSelectedEmployeeId(parseInt(e.target.value))}
-            options={employees.map(e => ({ value: e.id, label: e.full_name }))}
-            required
+    <PageContainer pageTitle="Reports" exportButtonText="Export Reports" onExportButtonClick={exportReports}>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Overall Summary</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card
+            title="Total Revenue"
+            icon={DollarSign}
+            value={`$${totalBilling.toFixed(2)}`}
+            description="Total billing amount from all completed tasks"
           />
-          <FormSelect
-            label="Select Month"
-            id="month-select-report"
-            name="month"
-            value={selectedMonth || ''}
-            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-            options={months}
-            required
+          <Card
+            title="Total Tasks"
+            icon={List}
+            value={tasks.length}
+            description="All tasks in the system"
           />
-          <FormSelect
-            label="Select Year"
-            id="year-select-report"
-            name="year"
-            value={selectedYear || ''}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            options={years}
-            required
+          <Card
+            title="Customers with Tasks"
+            icon={Landmark}
+            value={customers.filter(c => tasks.some(t => t.assign_to_customer === c.id)).length}
+            description="Customers with at least one task"
           />
         </div>
-        <button
-          onClick={handleGenerateReport}
-          className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-full font-medium shadow-md hover:bg-blue-700 transition-colors transform hover:scale-105"
-        >
-          Generate Report
-        </button>
       </div>
-
-      {reportData && (
-        <div className="bg-white p-6 rounded-2xl shadow-xl">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Report for {reportData.employeeName}</h2>
-          <p className="text-gray-500 mb-4 text-lg">For the period: {reportData.month}, {reportData.year}</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card
-              title="Total Tasks"
-              icon={List}
-              value={reportData.totalTasks}
-              description="Total tasks assigned"
-            />
-            <Card
-              title="Completed"
-              icon={FileText}
-              value={reportData.completedTasks}
-              description="Tasks successfully completed"
-            />
-            <Card
-              title="Completion Rate"
-              icon={FilePieChart}
-              value={`${reportData.completionRate}%`}
-              description="Percentage of tasks completed"
-            />
-            <Card
-              title="Total Billed"
-              icon={DollarSign}
-              value={`${reportData.totalBillingAmount}`}
-              description="Total amount from all tasks"
-            />
-          </div>
-
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Task Details</h3>
-          {reportData.tasks.length > 0 ? (
-            <Table
-              data={reportData.tasks}
-              columns={[
-                { key: 'title', header: 'Title' },
-                { key: 'status', header: 'Status' },
-                { key: 'due_date', header: 'Due Date' },
-                { key: 'priority', header: 'Priority' },
-                { key: 'billing_amount', header: 'Billing Amount' }
-              ]}
-            />
-          ) : (
-            <p className="text-gray-500">No tasks assigned to this employee in the selected period.</p>
-          )}
-
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Customer-wise Task Report</h2>
+        <div className="overflow-x-auto bg-white rounded-lg shadow-xl">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Customer
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Total Tasks
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Completed Tasks
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Total Billed Amount
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {tasksByCustomer.map(customer => (
+                <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">
+                    {customer.company_name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+                    {customer.tasks.length}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+                    {customer.tasks.filter(t => t.status === 'Completed').length}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+                    ${customer.tasks.reduce((sum, t) => sum + (t.billing_amount || 0), 0).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </PageContainer>
   );
 };
@@ -1484,24 +1510,21 @@ const ReportsPage = () => {
 const App = () => {
   const [currentPage, setCurrentPage] = useState('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(false);
 
-  useEffect(() => {
-    if (supabase) {
-      setIsSupabaseConfigured(true);
-    }
-  }, []);
-
-  const renderPage = () => {
-    if (!isSupabaseConfigured) {
-      return (
-        <div className="flex items-center justify-center h-[calc(100vh-100px)] p-4 text-center bg-white rounded-lg shadow-md">
+  // Check if Supabase client is configured
+  if (!supabase) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+        <div className="p-8 border bg-white rounded-lg shadow-md">
           <p className="text-red-600 font-medium text-lg">
             Supabase is not configured. Please check your environment variables.
           </p>
         </div>
-      );
-    }
+      </div>
+    );
+  }
+
+  const renderPage = () => {
     switch (currentPage) {
       case 'Dashboard':
         return <DashboardPage />;
@@ -1537,7 +1560,7 @@ const App = () => {
           <h1 className="text-xl font-bold text-blue-600">TaskTracker</h1>
           <div className="w-6"></div>
         </header>
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-y-auto">
           {renderPage()}
         </main>
       </div>
