@@ -1,0 +1,394 @@
+import { useEffect, useState } from "react";
+import { supabase } from "../supabaseClient";
+import { Modal } from "./Modal";
+import { Plus, Upload, Download } from "lucide-react";
+
+const exportToCSV = (rows: any[], filename: string) => {
+  if (!rows || rows.length === 0) return;
+  const csv =
+    Object.keys(rows[0]).join(",") +
+    "\n" +
+    rows.map((r) => Object.values(r).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+};
+
+export const TasksPage = () => {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [currentTask, setCurrentTask] = useState({
+    id: null,
+    title: "",
+    description: "",
+    due_date: "",
+    priority: "",
+    status: "",
+    assign_to_employee: null,
+    assign_to_customer: null,
+    billing_amount: "",
+    paid_amount: "0",
+  });
+
+  const fetchTasks = async () => {
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) setErrorMessage("Failed to fetch tasks.");
+    else setTasks(data || []);
+    setLoading(false);
+  };
+
+  const fetchCustomers = async () => {
+    const { data, error } = await supabase.from("customers").select("id, company_name");
+    if (error) setErrorMessage("Failed to fetch customers.");
+    else setCustomers(data || []);
+  };
+
+  const fetchEmployees = async () => {
+    const { data, error } = await supabase.from("employees").select("id, full_name");
+    if (error) setErrorMessage("Failed to fetch employees.");
+    else setEmployees(data || []);
+  };
+
+  useEffect(() => {
+    fetchTasks();
+    fetchCustomers();
+    fetchEmployees();
+  }, []);
+
+  const handleAddClick = () => {
+    setEditMode(false);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setCurrentTask({
+      id: null,
+      title: "",
+      description: "",
+      due_date: "",
+      priority: "",
+      status: "",
+      assign_to_employee: null,
+      assign_to_customer: null,
+      billing_amount: "",
+      paid_amount: "0",
+    });
+    setModalOpen(true);
+  };
+
+  const handleEditClick = (task: any) => {
+    setEditMode(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setCurrentTask(task);
+    setModalOpen(true);
+  };
+
+  const validateTask = (task: any) => {
+    if (!task.title) return "Title is required.";
+    if (!task.status) return "Status is required.";
+    if (!task.priority) return "Priority is required.";
+    if (task.billing_amount && isNaN(parseFloat(task.billing_amount)))
+      return "Billing amount must be a number.";
+    if (task.paid_amount && isNaN(parseFloat(task.paid_amount)))
+      return "Paid amount must be a number.";
+    return null;
+  };
+
+  const saveTask = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const validationError = validateTask(currentTask);
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+
+    const taskData: any = {
+      title: currentTask.title,
+      description: currentTask.description,
+      due_date: currentTask.due_date || null,
+      priority: currentTask.priority || null,
+      status: currentTask.status || null,
+      assign_to_customer: currentTask.assign_to_customer
+        ? parseInt(currentTask.assign_to_customer, 10)
+        : null,
+      assign_to_employee: currentTask.assign_to_employee
+        ? parseInt(currentTask.assign_to_employee, 10)
+        : null,
+      billing_amount: currentTask.billing_amount
+        ? parseFloat(currentTask.billing_amount)
+        : null,
+      paid_amount: currentTask.paid_amount
+        ? parseFloat(currentTask.paid_amount)
+        : 0,
+    };
+
+    let error;
+    if (editMode) {
+      ({ error } = await supabase.from("tasks").update(taskData).eq("id", currentTask.id));
+    } else {
+      ({ error } = await supabase.from("tasks").insert([taskData]));
+    }
+
+    if (error) {
+      setErrorMessage(error.message || "Something went wrong while saving.");
+      return;
+    }
+
+    setSuccessMessage(editMode ? "Task updated successfully!" : "Task added successfully!");
+    setModalOpen(false);
+    fetchTasks();
+  };
+
+  const deleteTask = async (id: number) => {
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
+    if (error) setErrorMessage("Failed to delete task.");
+    else setSuccessMessage("Task deleted successfully!");
+    fetchTasks();
+  };
+
+  const handleExport = () => {
+    if (tasks.length > 0) {
+      exportToCSV(tasks, "tasks.csv");
+      setSuccessMessage("Tasks exported successfully!");
+    } else {
+      alert("No tasks to export");
+    }
+  };
+
+  const handleImport = async (e: any) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    const [headerLine, ...lines] = text.split("\n");
+    const headers = headerLine.split(",").map((h) => h.trim());
+
+    const records = lines
+      .filter((l) => l.trim() !== "")
+      .map((line) => {
+        const values = line.split(",").map((v) => v.trim());
+        const obj: any = {};
+        headers.forEach((h, i) => (obj[h] = values[i] || null));
+
+        if (obj.assign_to_customer)
+          obj.assign_to_customer = parseInt(obj.assign_to_customer, 10);
+        if (obj.assign_to_employee)
+          obj.assign_to_employee = parseInt(obj.assign_to_employee, 10);
+        if (obj.billing_amount)
+          obj.billing_amount = parseFloat(obj.billing_amount);
+        if (obj.paid_amount)
+          obj.paid_amount = parseFloat(obj.paid_amount);
+
+        delete obj.id;
+        return obj;
+      });
+
+    if (records.length > 0) {
+      const { error } = await supabase.from("tasks").insert(records);
+      if (error) setErrorMessage("Error importing tasks: " + error.message);
+      else setSuccessMessage("Tasks imported successfully!");
+      fetchTasks();
+    }
+  };
+
+  return (
+    <div className="p-6 space-y-4">
+      <div className="bg-white shadow rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <h1 className="text-2xl font-bold text-gray-700">Tasks</h1>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleAddClick}
+            className="flex items-center gap-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+          >
+            <Plus className="w-4 h-4" /> Add Task
+          </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+          >
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
+          <label className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-blue-700 transition">
+            <Upload className="w-4 h-4" /> Import CSV
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImport}
+              className="hidden"
+            />
+          </label>
+        </div>
+      </div>
+
+      {errorMessage && (
+        <div className="bg-red-100 text-red-700 p-2 rounded">
+          {errorMessage}
+        </div>
+      )}
+      {successMessage && (
+        <div className="bg-green-100 text-green-700 p-2 rounded">
+          {successMessage}
+        </div>
+      )}
+
+      <div className="bg-white shadow rounded-2xl overflow-hidden">
+        {loading ? (
+          <p className="p-4">Loading tasks…</p>
+        ) : (
+          <table className="min-w-full">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="text-left px-4 py-2">Title</th>
+                <th className="text-left px-4 py-2">Status</th>
+                <th className="text-left px-4 py-2">Priority</th>
+                <th className="text-left px-4 py-2">Due Date</th>
+                <th className="text-left px-4 py-2">Billing</th>
+                <th className="text-left px-4 py-2">Paid</th>
+                <th className="text-left px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map((task) => (
+                <tr
+                  key={task.id}
+                  className="border-t hover:bg-gray-50 transition"
+                >
+                  <td className="px-4 py-2">{task.title}</td>
+                  <td className="px-4 py-2">{task.status}</td>
+                  <td className="px-4 py-2">{task.priority}</td>
+                  <td className="px-4 py-2">{task.due_date}</td>
+                  <td className="px-4 py-2">{task.billing_amount}</td>
+                  <td className="px-4 py-2">{task.paid_amount}</td>
+                  <td className="px-4 py-2">
+                    <button
+                      className="text-indigo-600 hover:underline mr-2"
+                      onClick={() => handleEditClick(task)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="text-red-600 hover:underline"
+                      onClick={() => deleteTask(task.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {modalOpen && (
+        <Modal
+          title={editMode ? "Edit Task" : "Add Task"}
+          onClose={() => setModalOpen(false)}
+          onSave={saveTask}
+        >
+          {errorMessage && (
+            <p className="text-red-600 mb-2">{errorMessage}</p>
+          )}
+          {successMessage && (
+            <p className="text-green-600 mb-2">{successMessage}</p>
+          )}
+          <input
+            className="border p-2 w-full mb-2 rounded"
+            placeholder="Title"
+            value={currentTask.title}
+            onChange={(e) => setCurrentTask({ ...currentTask, title: e.target.value })}
+          />
+          <textarea
+            className="border p-2 w-full mb-2 rounded"
+            placeholder="Description"
+            value={currentTask.description}
+            onChange={(e) => setCurrentTask({ ...currentTask, description: e.target.value })}
+          />
+          <input
+            type="date"
+            className="border p-2 w-full mb-2 rounded"
+            value={currentTask.due_date}
+            onChange={(e) => setCurrentTask({ ...currentTask, due_date: e.target.value })}
+          />
+          <select
+            className="border p-2 w-full mb-2 rounded"
+            value={currentTask.status}
+            onChange={(e) => setCurrentTask({ ...currentTask, status: e.target.value })}
+          >
+            <option value="">Select Status</option>
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+          </select>
+          <select
+            className="border p-2 w-full mb-2 rounded"
+            value={currentTask.priority}
+            onChange={(e) => setCurrentTask({ ...currentTask, priority: e.target.value })}
+          >
+            <option value="">Select Priority</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+          <select
+            className="border p-2 w-full mb-2 rounded"
+            value={currentTask.assign_to_customer || ""}
+            onChange={(e) =>
+              setCurrentTask({
+                ...currentTask,
+                assign_to_customer: e.target.value ? parseInt(e.target.value, 10) : null,
+              })
+            }
+          >
+            <option value="">Assign to Customer</option>
+            {customers.map((cust) => (
+              <option key={cust.id} value={cust.id}>
+                {cust.company_name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="border p-2 w-full mb-2 rounded"
+            value={currentTask.assign_to_employee || ""}
+            onChange={(e) =>
+              setCurrentTask({
+                ...currentTask,
+                assign_to_employee: e.target.value ? parseInt(e.target.value, 10) : null,
+              })
+            }
+          >
+            <option value="">Assign to Employee</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.full_name}
+              </option>
+            ))}
+          </select>
+          <input
+            className="border p-2 w-full mb-2 rounded"
+            placeholder="Billing Amount"
+            value={currentTask.billing_amount}
+            onChange={(e) => setCurrentTask({ ...currentTask, billing_amount: e.target.value })}
+          />
+          <input
+            className="border p-2 w-full mb-2 rounded"
+            placeholder="Paid Amount"
+            value={currentTask.paid_amount}
+            onChange={(e) => setCurrentTask({ ...currentTask, paid_amount: e.target.value })}
+          />
+        </Modal>
+      )}
+    </div>
+  );
+};

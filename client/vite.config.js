@@ -8,4 +8,7 @@ export default defineConfig({
   css: {
     postcss: path.resolve(__dirname, 'postcss.config.cjs'),
   },
+  server: {
+    port: 5173, // ✅ Lock the port so Netlify Dev can always proxy correctly
+  },
 });

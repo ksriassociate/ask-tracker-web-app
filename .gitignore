@@ -11,3 +11,5 @@ dist/
 # Any other files you don't want to commit (e.g., sensitive keys, temporary logs)
 *.log
 *.env
+# Local Netlify folder
+.netlify

@@ -16,12 +16,12 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    // 👇 Add this
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@shared/*": ["../shared/*"] // only if you actually use @shared
-    }
+      "@shared/*": ["../shared/*"]
+    },
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
