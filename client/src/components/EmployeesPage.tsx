@@ -45,7 +45,13 @@ export const EmployeesPage = () => {
 
   const handleAddClick = () => {
     setEditMode(false);
-    setCurrentEmployee({ id: null, full_name: "", email: "", position: "", department: "" });
+    setCurrentEmployee({
+      id: null,
+      full_name: "",
+      email: "",
+      position: "",
+      department: "",
+    });
     setModalOpen(true);
   };
 
@@ -146,48 +152,50 @@ export const EmployeesPage = () => {
         </div>
       </div>
 
-      <div className="bg-white shadow rounded-2xl overflow-hidden">
+      <div className="bg-white shadow rounded-2xl">
         {loading ? (
           <p className="p-4">Loading employees…</p>
         ) : (
-          <table className="min-w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="text-left px-4 py-2">Full Name</th>
-                <th className="text-left px-4 py-2">Email</th>
-                <th className="text-left px-4 py-2">Position</th>
-                <th className="text-left px-4 py-2">Department</th>
-                <th className="text-left px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((emp) => (
-                <tr
-                  key={emp.id}
-                  className="border-t hover:bg-gray-50 transition"
-                >
-                  <td className="px-4 py-2">{emp.full_name}</td>
-                  <td className="px-4 py-2">{emp.email}</td>
-                  <td className="px-4 py-2">{emp.position}</td>
-                  <td className="px-4 py-2">{emp.department}</td>
-                  <td className="px-4 py-2">
-                    <button
-                      className="text-indigo-600 hover:underline mr-2"
-                      onClick={() => handleEditClick(emp)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-red-600 hover:underline"
-                      onClick={() => deleteEmployee(emp.id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-2">Full Name</th>
+                  <th className="text-left px-4 py-2">Email</th>
+                  <th className="text-left px-4 py-2">Position</th>
+                  <th className="text-left px-4 py-2">Department</th>
+                  <th className="text-left px-4 py-2">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {employees.map((emp) => (
+                  <tr
+                    key={emp.id}
+                    className="border-t hover:bg-gray-50 transition"
+                  >
+                    <td className="px-4 py-2">{emp.full_name}</td>
+                    <td className="px-4 py-2">{emp.email}</td>
+                    <td className="px-4 py-2">{emp.position}</td>
+                    <td className="px-4 py-2">{emp.department}</td>
+                    <td className="px-4 py-2">
+                      <button
+                        className="text-indigo-600 hover:underline mr-2"
+                        onClick={() => handleEditClick(emp)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-red-600 hover:underline"
+                        onClick={() => deleteEmployee(emp.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -202,7 +210,10 @@ export const EmployeesPage = () => {
             placeholder="Full Name"
             value={currentEmployee.full_name}
             onChange={(e) =>
-              setCurrentEmployee({ ...currentEmployee, full_name: e.target.value })
+              setCurrentEmployee({
+                ...currentEmployee,
+                full_name: e.target.value,
+              })
             }
           />
           <input
@@ -210,7 +221,10 @@ export const EmployeesPage = () => {
             placeholder="Email"
             value={currentEmployee.email}
             onChange={(e) =>
-              setCurrentEmployee({ ...currentEmployee, email: e.target.value })
+              setCurrentEmployee({
+                ...currentEmployee,
+                email: e.target.value,
+              })
             }
           />
           <input
@@ -218,7 +232,10 @@ export const EmployeesPage = () => {
             placeholder="Position"
             value={currentEmployee.position}
             onChange={(e) =>
-              setCurrentEmployee({ ...currentEmployee, position: e.target.value })
+              setCurrentEmployee({
+                ...currentEmployee,
+                position: e.target.value,
+              })
             }
           />
           <input
@@ -226,7 +243,10 @@ export const EmployeesPage = () => {
             placeholder="Department"
             value={currentEmployee.department}
             onChange={(e) =>
-              setCurrentEmployee({ ...currentEmployee, department: e.target.value })
+              setCurrentEmployee({
+                ...currentEmployee,
+                department: e.target.value,
+              })
             }
           />
         </Modal>

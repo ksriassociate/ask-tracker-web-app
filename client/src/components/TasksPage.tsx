@@ -49,13 +49,17 @@ export const TasksPage = () => {
   };
 
   const fetchCustomers = async () => {
-    const { data, error } = await supabase.from("customers").select("id, company_name");
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id, company_name");
     if (error) setErrorMessage("Failed to fetch customers.");
     else setCustomers(data || []);
   };
 
   const fetchEmployees = async () => {
-    const { data, error } = await supabase.from("employees").select("id, full_name");
+    const { data, error } = await supabase
+      .from("employees")
+      .select("id, full_name");
     if (error) setErrorMessage("Failed to fetch employees.");
     else setEmployees(data || []);
   };
@@ -136,7 +140,10 @@ export const TasksPage = () => {
 
     let error;
     if (editMode) {
-      ({ error } = await supabase.from("tasks").update(taskData).eq("id", currentTask.id));
+      ({ error } = await supabase
+        .from("tasks")
+        .update(taskData)
+        .eq("id", currentTask.id));
     } else {
       ({ error } = await supabase.from("tasks").insert([taskData]));
     }
@@ -146,7 +153,9 @@ export const TasksPage = () => {
       return;
     }
 
-    setSuccessMessage(editMode ? "Task updated successfully!" : "Task added successfully!");
+    setSuccessMessage(
+      editMode ? "Task updated successfully!" : "Task added successfully!"
+    );
     setModalOpen(false);
     fetchTasks();
   };
@@ -187,8 +196,7 @@ export const TasksPage = () => {
           obj.assign_to_employee = parseInt(obj.assign_to_employee, 10);
         if (obj.billing_amount)
           obj.billing_amount = parseFloat(obj.billing_amount);
-        if (obj.paid_amount)
-          obj.paid_amount = parseFloat(obj.paid_amount);
+        if (obj.paid_amount) obj.paid_amount = parseFloat(obj.paid_amount);
 
         delete obj.id;
         return obj;
@@ -242,52 +250,58 @@ export const TasksPage = () => {
         </div>
       )}
 
-      <div className="bg-white shadow rounded-2xl overflow-hidden">
+      <div className="bg-white shadow rounded-2xl">
         {loading ? (
           <p className="p-4">Loading tasks…</p>
         ) : (
-          <table className="min-w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="text-left px-4 py-2">Title</th>
-                <th className="text-left px-4 py-2">Status</th>
-                <th className="text-left px-4 py-2">Priority</th>
-                <th className="text-left px-4 py-2">Due Date</th>
-                <th className="text-left px-4 py-2">Billing</th>
-                <th className="text-left px-4 py-2">Paid</th>
-                <th className="text-left px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map((task) => (
-                <tr
-                  key={task.id}
-                  className="border-t hover:bg-gray-50 transition"
-                >
-                  <td className="px-4 py-2">{task.title}</td>
-                  <td className="px-4 py-2">{task.status}</td>
-                  <td className="px-4 py-2">{task.priority}</td>
-                  <td className="px-4 py-2">{task.due_date}</td>
-                  <td className="px-4 py-2">{task.billing_amount}</td>
-                  <td className="px-4 py-2">{task.paid_amount}</td>
-                  <td className="px-4 py-2">
-                    <button
-                      className="text-indigo-600 hover:underline mr-2"
-                      onClick={() => handleEditClick(task)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-red-600 hover:underline"
-                      onClick={() => deleteTask(task.id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-2">Title</th>
+                  <th className="text-left px-4 py-2">Status</th>
+                  <th className="text-left px-4 py-2">Priority</th>
+                  <th className="text-left px-4 py-2">Due Date</th>
+                  <th className="text-left px-4 py-2">Billing</th>
+                  <th className="text-left px-4 py-2">Paid</th>
+                  <th className="text-left px-4 py-2">Employee</th>
+                  <th className="text-left px-4 py-2">Customer</th>
+                  <th className="text-left px-4 py-2">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {tasks.map((task) => (
+                  <tr
+                    key={task.id}
+                    className="border-t hover:bg-gray-50 transition"
+                  >
+                    <td className="px-4 py-2">{task.title}</td>
+                    <td className="px-4 py-2">{task.status}</td>
+                    <td className="px-4 py-2">{task.priority}</td>
+                    <td className="px-4 py-2">{task.due_date}</td>
+                    <td className="px-4 py-2">{task.billing_amount}</td>
+                    <td className="px-4 py-2">{task.paid_amount}</td>
+                    <td className="px-4 py-2">{task.assign_to_employee}</td>
+                    <td className="px-4 py-2">{task.assign_to_customer}</td>
+                    <td className="px-4 py-2">
+                      <button
+                        className="text-indigo-600 hover:underline mr-2"
+                        onClick={() => handleEditClick(task)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-red-600 hover:underline"
+                        onClick={() => deleteTask(task.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -297,96 +311,55 @@ export const TasksPage = () => {
           onClose={() => setModalOpen(false)}
           onSave={saveTask}
         >
-          {errorMessage && (
-            <p className="text-red-600 mb-2">{errorMessage}</p>
-          )}
-          {successMessage && (
-            <p className="text-green-600 mb-2">{successMessage}</p>
-          )}
+          {/* form inputs */}
           <input
             className="border p-2 w-full mb-2 rounded"
             placeholder="Title"
             value={currentTask.title}
-            onChange={(e) => setCurrentTask({ ...currentTask, title: e.target.value })}
+            onChange={(e) =>
+              setCurrentTask({ ...currentTask, title: e.target.value })
+            }
           />
           <textarea
             className="border p-2 w-full mb-2 rounded"
             placeholder="Description"
             value={currentTask.description}
-            onChange={(e) => setCurrentTask({ ...currentTask, description: e.target.value })}
+            onChange={(e) =>
+              setCurrentTask({ ...currentTask, description: e.target.value })
+            }
           />
           <input
+            className="border p-2 w-full mb-2 rounded"
             type="date"
-            className="border p-2 w-full mb-2 rounded"
-            value={currentTask.due_date}
-            onChange={(e) => setCurrentTask({ ...currentTask, due_date: e.target.value })}
+            value={currentTask.due_date || ""}
+            onChange={(e) =>
+              setCurrentTask({ ...currentTask, due_date: e.target.value })
+            }
           />
-          <select
-            className="border p-2 w-full mb-2 rounded"
-            value={currentTask.status}
-            onChange={(e) => setCurrentTask({ ...currentTask, status: e.target.value })}
-          >
-            <option value="">Select Status</option>
-            <option value="Pending">Pending</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Completed">Completed</option>
-          </select>
           <select
             className="border p-2 w-full mb-2 rounded"
             value={currentTask.priority}
-            onChange={(e) => setCurrentTask({ ...currentTask, priority: e.target.value })}
+            onChange={(e) =>
+              setCurrentTask({ ...currentTask, priority: e.target.value })
+            }
           >
             <option value="">Select Priority</option>
             <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
+            <option value="Normal">Normal</option>
             <option value="High">High</option>
           </select>
           <select
             className="border p-2 w-full mb-2 rounded"
-            value={currentTask.assign_to_customer || ""}
+            value={currentTask.status}
             onChange={(e) =>
-              setCurrentTask({
-                ...currentTask,
-                assign_to_customer: e.target.value ? parseInt(e.target.value, 10) : null,
-              })
+              setCurrentTask({ ...currentTask, status: e.target.value })
             }
           >
-            <option value="">Assign to Customer</option>
-            {customers.map((cust) => (
-              <option key={cust.id} value={cust.id}>
-                {cust.company_name}
-              </option>
-            ))}
+            <option value="">Select Status</option>
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
           </select>
-          <select
-            className="border p-2 w-full mb-2 rounded"
-            value={currentTask.assign_to_employee || ""}
-            onChange={(e) =>
-              setCurrentTask({
-                ...currentTask,
-                assign_to_employee: e.target.value ? parseInt(e.target.value, 10) : null,
-              })
-            }
-          >
-            <option value="">Assign to Employee</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.full_name}
-              </option>
-            ))}
-          </select>
-          <input
-            className="border p-2 w-full mb-2 rounded"
-            placeholder="Billing Amount"
-            value={currentTask.billing_amount}
-            onChange={(e) => setCurrentTask({ ...currentTask, billing_amount: e.target.value })}
-          />
-          <input
-            className="border p-2 w-full mb-2 rounded"
-            placeholder="Paid Amount"
-            value={currentTask.paid_amount}
-            onChange={(e) => setCurrentTask({ ...currentTask, paid_amount: e.target.value })}
-          />
         </Modal>
       )}
     </div>

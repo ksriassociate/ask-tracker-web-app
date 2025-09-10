@@ -157,48 +157,50 @@ export const CustomersPage = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white shadow rounded-2xl overflow-hidden">
+      <div className="bg-white shadow rounded-2xl">
         {loading ? (
           <p className="p-4">Loading customers…</p>
         ) : (
-          <table className="min-w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="text-left px-4 py-2">Company</th>
-                <th className="text-left px-4 py-2">Contact</th>
-                <th className="text-left px-4 py-2">Email</th>
-                <th className="text-left px-4 py-2">Phone</th>
-                <th className="text-left px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers.map((cust) => (
-                <tr
-                  key={cust.id}
-                  className="border-t hover:bg-gray-50 transition"
-                >
-                  <td className="px-4 py-2">{cust.company_name}</td>
-                  <td className="px-4 py-2">{cust.contact_person}</td>
-                  <td className="px-4 py-2">{cust.email}</td>
-                  <td className="px-4 py-2">{cust.phone_number}</td>
-                  <td className="px-4 py-2">
-                    <button
-                      className="text-indigo-600 hover:underline mr-2"
-                      onClick={() => handleEditClick(cust)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-red-600 hover:underline"
-                      onClick={() => deleteCustomer(cust.id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-2">Company</th>
+                  <th className="text-left px-4 py-2">Contact</th>
+                  <th className="text-left px-4 py-2">Email</th>
+                  <th className="text-left px-4 py-2">Phone</th>
+                  <th className="text-left px-4 py-2">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {customers.map((cust) => (
+                  <tr
+                    key={cust.id}
+                    className="border-t hover:bg-gray-50 transition"
+                  >
+                    <td className="px-4 py-2">{cust.company_name}</td>
+                    <td className="px-4 py-2">{cust.contact_person}</td>
+                    <td className="px-4 py-2">{cust.email}</td>
+                    <td className="px-4 py-2">{cust.phone_number}</td>
+                    <td className="px-4 py-2">
+                      <button
+                        className="text-indigo-600 hover:underline mr-2"
+                        onClick={() => handleEditClick(cust)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-red-600 hover:underline"
+                        onClick={() => deleteCustomer(cust.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -214,7 +216,10 @@ export const CustomersPage = () => {
             placeholder="Company Name"
             value={currentCustomer.company_name}
             onChange={(e) =>
-              setCurrentCustomer({ ...currentCustomer, company_name: e.target.value })
+              setCurrentCustomer({
+                ...currentCustomer,
+                company_name: e.target.value,
+              })
             }
           />
           <input
