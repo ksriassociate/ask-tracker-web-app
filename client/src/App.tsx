@@ -1,6 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useState } from "react";
+import { Sidebar } from "./components/Sidebar"; // ✅ Corrected import
+import { Menu, X } from "lucide-react"; // ✅ Lucide icons
 
-// ✅ All pages as named exports
+// ✅ All pages
 import { Dashboard } from "./components/Dashboard";
 import { CustomersPage } from "./components/CustomersPage";
 import { EmployeesPage } from "./components/EmployeesPage";
@@ -9,38 +12,38 @@ import { InvoicesPage } from "./components/InvoicesPage";
 import { ReportsPage } from "./components/ReportsPage";
 
 export default function App() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // for mobile
+  const [isCollapsed, setIsCollapsed] = useState(false); // for desktop
+
   return (
     <Router>
-      <div className="flex h-screen">
+      <div className="flex h-screen relative">
         {/* Sidebar */}
-        <aside className="w-64 bg-gray-800 text-white flex flex-col">
-          <div className="p-4 text-xl font-bold border-b border-gray-700">
-            K Sriram & Associates
-          </div>
-          <nav className="flex-1 p-4 space-y-2">
-            <Link className="block p-2 rounded hover:bg-gray-700" to="/">
-              Dashboard
-            </Link>
-            <Link className="block p-2 rounded hover:bg-gray-700" to="/customers">
-              Customers
-            </Link>
-            <Link className="block p-2 rounded hover:bg-gray-700" to="/employees">
-              Employees
-            </Link>
-            <Link className="block p-2 rounded hover:bg-gray-700" to="/tasks">
-              Tasks
-            </Link>
-            <Link className="block p-2 rounded hover:bg-gray-700" to="/invoices">
-              Invoices
-            </Link>
-            <Link className="block p-2 rounded hover:bg-gray-700" to="/reports">
-              Reports
-            </Link>
-          </nav>
-        </aside>
+        <Sidebar
+          isOpen={isSidebarOpen}
+          setIsOpen={setIsSidebarOpen}
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
+        />
+
+        {/* Dark overlay for mobile */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity duration-300"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
 
         {/* Main Content */}
         <main className="flex-1 bg-gray-100 overflow-auto">
+          {/* Mobile menu button */}
+          <button
+            className="md:hidden m-2 p-2 bg-gray-800 text-white rounded shadow"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          >
+            {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/customers" element={<CustomersPage />} />
