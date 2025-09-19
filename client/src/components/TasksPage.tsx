@@ -210,6 +210,19 @@ export const TasksPage = () => {
     }
   };
 
+  // helpers to display names instead of IDs
+  const getEmployeeName = (id: number | null) => {
+    if (!id) return "";
+    const emp = employees.find((e) => e.id === id);
+    return emp ? emp.full_name : id;
+  };
+
+  const getCustomerName = (id: number | null) => {
+    if (!id) return "";
+    const cust = customers.find((c) => c.id === id);
+    return cust ? cust.company_name : id;
+  };
+
   return (
     <div className="p-6 space-y-4">
       <div className="bg-white shadow rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -281,8 +294,12 @@ export const TasksPage = () => {
                     <td className="px-4 py-2">{task.due_date}</td>
                     <td className="px-4 py-2">{task.billing_amount}</td>
                     <td className="px-4 py-2">{task.paid_amount}</td>
-                    <td className="px-4 py-2">{task.assign_to_employee}</td>
-                    <td className="px-4 py-2">{task.assign_to_customer}</td>
+                    <td className="px-4 py-2">
+                      {getEmployeeName(task.assign_to_employee)}
+                    </td>
+                    <td className="px-4 py-2">
+                      {getCustomerName(task.assign_to_customer)}
+                    </td>
                     <td className="px-4 py-2">
                       <button
                         className="text-indigo-600 hover:underline mr-2"
@@ -311,7 +328,7 @@ export const TasksPage = () => {
           onClose={() => setModalOpen(false)}
           onSave={saveTask}
         >
-          {/* form inputs */}
+          {/* Title */}
           <input
             className="border p-2 w-full mb-2 rounded"
             placeholder="Title"
@@ -320,6 +337,8 @@ export const TasksPage = () => {
               setCurrentTask({ ...currentTask, title: e.target.value })
             }
           />
+
+          {/* Description */}
           <textarea
             className="border p-2 w-full mb-2 rounded"
             placeholder="Description"
@@ -328,6 +347,9 @@ export const TasksPage = () => {
               setCurrentTask({ ...currentTask, description: e.target.value })
             }
           />
+
+          {/* Due Date */}
+          <label className="block mb-1 font-medium">Due Date</label>
           <input
             className="border p-2 w-full mb-2 rounded"
             type="date"
@@ -336,6 +358,32 @@ export const TasksPage = () => {
               setCurrentTask({ ...currentTask, due_date: e.target.value })
             }
           />
+
+          {/* Billing Amount */}
+          <label className="block mb-1 font-medium">Billing Amount</label>
+          <input
+            className="border p-2 w-full mb-2 rounded"
+            type="number"
+            placeholder="Billing Amount"
+            value={currentTask.billing_amount || ""}
+            onChange={(e) =>
+              setCurrentTask({ ...currentTask, billing_amount: e.target.value })
+            }
+          />
+
+          {/* Paid Amount */}
+          <label className="block mb-1 font-medium">Paid Amount</label>
+          <input
+            className="border p-2 w-full mb-2 rounded"
+            type="number"
+            placeholder="Paid Amount"
+            value={currentTask.paid_amount || ""}
+            onChange={(e) =>
+              setCurrentTask({ ...currentTask, paid_amount: e.target.value })
+            }
+          />
+
+          {/* Priority */}
           <select
             className="border p-2 w-full mb-2 rounded"
             value={currentTask.priority}
@@ -348,6 +396,8 @@ export const TasksPage = () => {
             <option value="Normal">Normal</option>
             <option value="High">High</option>
           </select>
+
+          {/* Status */}
           <select
             className="border p-2 w-full mb-2 rounded"
             value={currentTask.status}
@@ -359,6 +409,46 @@ export const TasksPage = () => {
             <option value="Open">Open</option>
             <option value="In Progress">In Progress</option>
             <option value="Completed">Completed</option>
+          </select>
+
+          {/* Assign to Employee */}
+          <label className="block mb-1 font-medium">Assign to Employee</label>
+          <select
+            className="border p-2 w-full mb-2 rounded"
+            value={currentTask.assign_to_employee || ""}
+            onChange={(e) =>
+              setCurrentTask({
+                ...currentTask,
+                assign_to_employee: e.target.value,
+              })
+            }
+          >
+            <option value="">Select Employee</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.full_name}
+              </option>
+            ))}
+          </select>
+
+          {/* Assign to Customer */}
+          <label className="block mb-1 font-medium">Assign to Customer</label>
+          <select
+            className="border p-2 w-full mb-2 rounded"
+            value={currentTask.assign_to_customer || ""}
+            onChange={(e) =>
+              setCurrentTask({
+                ...currentTask,
+                assign_to_customer: e.target.value,
+              })
+            }
+          >
+            <option value="">Select Customer</option>
+            {customers.map((cust) => (
+              <option key={cust.id} value={cust.id}>
+                {cust.company_name}
+              </option>
+            ))}
           </select>
         </Modal>
       )}

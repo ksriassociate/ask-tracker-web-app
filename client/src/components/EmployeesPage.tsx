@@ -21,6 +21,9 @@ export const EmployeesPage = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const [currentEmployee, setCurrentEmployee] = useState({
     id: null,
     full_name: "",
@@ -34,8 +37,13 @@ export const EmployeesPage = () => {
       .from("employees")
       .select("*")
       .order("created_at", { ascending: false });
-    if (error) console.error(error);
-    else setEmployees(data || []);
+    if (error) {
+      console.error(error);
+      setErrorMessage("Failed to fetch employees.");
+    } else {
+      setEmployees(data || []);
+      setErrorMessage(null);
+    }
     setLoading(false);
   };
 
@@ -62,6 +70,9 @@ export const EmployeesPage = () => {
   };
 
   const saveEmployee = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
     if (editMode) {
       const { error } = await supabase
         .from("employees")
@@ -72,7 +83,12 @@ export const EmployeesPage = () => {
           department: currentEmployee.department,
         })
         .eq("id", currentEmployee.id);
-      if (error) console.error(error);
+      if (error) {
+        console.error(error);
+        setErrorMessage(error.message || "Failed to update employee.");
+      } else {
+        setSuccessMessage("Employee updated");
+      }
     } else {
       const { error } = await supabase.from("employees").insert([
         {
@@ -82,16 +98,67 @@ export const EmployeesPage = () => {
           department: currentEmployee.department,
         },
       ]);
-      if (error) console.error(error);
+      if (error) {
+        console.error(error);
+        setErrorMessage(error.message || "Failed to add employee.");
+      } else {
+        setSuccessMessage("Employee added");
+      }
     }
     setModalOpen(false);
     fetchEmployees();
   };
 
   const deleteEmployee = async (id: number) => {
-    const { error } = await supabase.from("employees").delete().eq("id", id);
-    if (error) console.error(error);
-    else fetchEmployees();
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this employee?"
+    );
+    if (!confirmed) return;
+
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      // check if any tasks reference this employee
+      const { data: linkedTasks, error: linkedErr } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("assign_to_employee", id);
+
+      if (linkedErr) throw linkedErr;
+
+      if (linkedTasks && linkedTasks.length > 0) {
+        const wantUnassign = window.confirm(
+          `This employee is assigned to ${linkedTasks.length} task(s).\n` +
+            "Press OK to unassign those tasks and delete the employee, or Cancel to abort."
+        );
+        if (!wantUnassign) {
+          setErrorMessage("Delete cancelled. Unassign tasks first.");
+          return;
+        }
+
+        // unassign tasks first
+        const { error: updateErr } = await supabase
+          .from("tasks")
+          .update({ assign_to_employee: null })
+          .eq("assign_to_employee", id);
+
+        if (updateErr) throw updateErr;
+      }
+
+      const { error } = await supabase.from("employees").delete().eq("id", id);
+      if (error) throw error;
+
+      // optimistic update of UI
+      setEmployees((prev) => prev.filter((e) => e.id !== id));
+      setSuccessMessage("Employee deleted successfully.");
+      fetchEmployees();
+    } catch (err: any) {
+      console.error(err);
+      setErrorMessage(err?.message || "Failed to delete employee.");
+      // refresh to keep UI consistent
+      fetchEmployees();
+    }
   };
 
   const handleExport = () => {
@@ -118,8 +185,13 @@ export const EmployeesPage = () => {
       });
     if (records.length > 0) {
       const { error } = await supabase.from("employees").insert(records);
-      if (error) console.error("Error importing employees:", error);
-      else fetchEmployees();
+      if (error) {
+        console.error("Error importing employees:", error);
+        setErrorMessage("Error importing employees: " + error.message);
+      } else {
+        setSuccessMessage("Employees imported successfully.");
+        fetchEmployees();
+      }
     }
   };
 
@@ -151,6 +223,15 @@ export const EmployeesPage = () => {
           </label>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="bg-red-100 text-red-700 p-2 rounded">{errorMessage}</div>
+      )}
+      {successMessage && (
+        <div className="bg-green-100 text-green-700 p-2 rounded">
+          {successMessage}
+        </div>
+      )}
 
       <div className="bg-white shadow rounded-2xl">
         {loading ? (
