@@ -3,18 +3,44 @@ import { supabase } from "../supabaseClient";
 import { Modal } from "./Modal";
 import { Plus, Upload, Download } from "lucide-react";
 
+// --- START: CORRECTED CSV LOGIC ---
+
+const escapeCsvValue = (value: any): string => {
+  if (value === null || value === undefined) return "";
+  const s = String(value);
+  // Check if the value contains a comma, double quote, or newline
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    // Escape internal double quotes by doubling them
+    const escapedS = s.replace(/"/g, '""');
+    // Wrap the entire field in double quotes
+    return `"${escapedS}"`;
+  }
+  return s;
+};
+
 const exportToCSV = (rows: any[], filename: string) => {
   if (!rows || rows.length === 0) return;
-  const csv =
-    Object.keys(rows[0]).join(",") +
-    "\n" +
-    rows.map((r) => Object.values(r).join(",")).join("\n");
+
+  const headers = Object.keys(rows[0]);
+  
+  // 1. Create the header line
+  const headerLine = headers.map(escapeCsvValue).join(",");
+
+  // 2. Create the data lines
+  const dataLines = rows.map((row) =>
+    headers.map((header) => escapeCsvValue(row[header])).join(",")
+  );
+
+  const csv = [headerLine, ...dataLines].join("\n");
+  
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = filename;
   link.click();
 };
+
+// --- END: CORRECTED CSV LOGIC ---
 
 export const CustomersPage = () => {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -113,9 +139,15 @@ export const CustomersPage = () => {
     const records = lines
       .filter((l) => l.trim() !== "")
       .map((line) => {
+        // NOTE: This basic split will FAIL if any field contains a comma.
+        // For a robust import, a CSV parser library should be used.
         const values = line.split(",").map((v) => v.trim());
         const obj: any = {};
         headers.forEach((h, i) => (obj[h] = values[i] || ""));
+        
+        // Remove 'id' if present, to allow Supabase to auto-generate
+        delete obj.id; 
+        
         return obj;
       });
 

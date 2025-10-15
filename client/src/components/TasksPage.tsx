@@ -3,18 +3,44 @@ import { supabase } from "../supabaseClient";
 import { Modal } from "./Modal";
 import { Plus, Upload, Download } from "lucide-react";
 
+// --- START: CORRECTED CSV LOGIC (No change from previous step, but included for completeness) ---
+
+const escapeCsvValue = (value: any): string => {
+  if (value === null || value === undefined) return "";
+  const s = String(value);
+  // Check if the value contains a comma, double quote, or newline
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    // Escape internal double quotes by doubling them
+    const escapedS = s.replace(/"/g, '""');
+    // Wrap the entire field in double quotes
+    return `"${escapedS}"`;
+  }
+  return s;
+};
+
 const exportToCSV = (rows: any[], filename: string) => {
   if (!rows || rows.length === 0) return;
-  const csv =
-    Object.keys(rows[0]).join(",") +
-    "\n" +
-    rows.map((r) => Object.values(r).join(",")).join("\n");
+
+  const headers = Object.keys(rows[0]);
+  
+  // 1. Create the header line
+  const headerLine = headers.map(escapeCsvValue).join(",");
+
+  // 2. Create the data lines
+  const dataLines = rows.map((row) =>
+    headers.map((header) => escapeCsvValue(row[header])).join(",")
+  );
+
+  const csv = [headerLine, ...dataLines].join("\n");
+  
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = filename;
   link.click();
 };
+
+// --- END: CORRECTED CSV LOGIC ---
 
 export const TasksPage = () => {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -179,21 +205,61 @@ export const TasksPage = () => {
   const handleImport = async (e: any) => {
     const file = e.target.files[0];
     if (!file) return;
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
     const text = await file.text();
     const [headerLine, ...lines] = text.split("\n");
     const headers = headerLine.split(",").map((h) => h.trim());
 
+    // Helper functions to map name to ID
+    const getEmployeeIdByName = (name: string) => {
+        const emp = employees.find(e => e.full_name?.trim().toLowerCase() === name?.trim().toLowerCase());
+        return emp ? emp.id : null;
+    };
+
+    const getCustomerIdByName = (name: string) => {
+        const cust = customers.find(c => c.company_name?.trim().toLowerCase() === name?.trim().toLowerCase());
+        return cust ? cust.id : null;
+    };
+
     const records = lines
       .filter((l) => l.trim() !== "")
       .map((line) => {
+        // NOTE: This basic split will FAIL if any field contains a comma.
         const values = line.split(",").map((v) => v.trim());
         const obj: any = {};
         headers.forEach((h, i) => (obj[h] = values[i] || null));
 
-        if (obj.assign_to_customer)
-          obj.assign_to_customer = parseInt(obj.assign_to_customer, 10);
-        if (obj.assign_to_employee)
-          obj.assign_to_employee = parseInt(obj.assign_to_employee, 10);
+        // === START: MAPPING NAME TO ID ===
+
+        // Handle assign_to_employee: Check if value is a string (Name) or a number string (ID)
+        const employeeValue = obj.assign_to_employee;
+        if (typeof employeeValue === 'string' && isNaN(parseInt(employeeValue, 10))) {
+            // It's a string, treat as Name and look up ID
+            obj.assign_to_employee = getEmployeeIdByName(employeeValue);
+        } else if (employeeValue) {
+            // It's a number string, treat as ID and parse it
+            obj.assign_to_employee = parseInt(employeeValue, 10);
+        } else {
+            obj.assign_to_employee = null;
+        }
+
+        // Handle assign_to_customer: Check if value is a string (Name) or a number string (ID)
+        const customerValue = obj.assign_to_customer;
+        if (typeof customerValue === 'string' && isNaN(parseInt(customerValue, 10))) {
+            // It's a string, treat as Name and look up ID
+            obj.assign_to_customer = getCustomerIdByName(customerValue);
+        } else if (customerValue) {
+            // It's a number string, treat as ID and parse it
+            obj.assign_to_customer = parseInt(customerValue, 10);
+        } else {
+            obj.assign_to_customer = null;
+        }
+        
+        // === END: MAPPING NAME TO ID ===
+
+        // Type conversion for other fields
         if (obj.billing_amount)
           obj.billing_amount = parseFloat(obj.billing_amount);
         if (obj.paid_amount) obj.paid_amount = parseFloat(obj.paid_amount);
