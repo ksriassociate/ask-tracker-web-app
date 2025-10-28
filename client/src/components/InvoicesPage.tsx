@@ -63,9 +63,11 @@ export function InvoicesPage() {
 
     let invoiceData;
     if (editMode && currentInvoice) {
+      // 💡 UPDATED: Including paid_amount in the update payload
       invoiceData = {
         invoice_number: currentInvoice.invoice_number,
         invoice_date: currentInvoice.invoice_date,
+        paid_amount: currentInvoice.paid_amount, // <-- ADDED
       };
 
       const { error } = await supabase
@@ -254,6 +256,19 @@ export function InvoicesPage() {
                   setCurrentInvoice({
                     ...currentInvoice,
                     invoice_number: e.target.value,
+                  })
+                }
+              />
+              {/* 💡 ADDED: Input for Paid Amount */}
+              <input
+                type="number"
+                className="w-full border px-2 py-1 mb-2"
+                placeholder="Paid Amount"
+                value={currentInvoice?.paid_amount || 0}
+                onChange={(e) =>
+                  setCurrentInvoice({
+                    ...currentInvoice,
+                    paid_amount: Number(e.target.value),
                   })
                 }
               />
