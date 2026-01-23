@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { PageContainer } from "./PageContainer";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { User } from "lucide-react";
+import { User, ClipboardList, Clock } from "lucide-react"; // Added icons for tasks
 
 export const ReportsPage = () => {
   const [reportData, setReportData] = useState<any[]>([]);
@@ -15,8 +15,9 @@ export const ReportsPage = () => {
   }, [fromDate, toDate]);
 
   const fetchReport = async () => {
+    // UPDATED: Added 'status' to the query to track completed/pending tasks
     let query = supabase.from("tasks").select(`
-      billing_amount, paid_amount, due_date,
+      billing_amount, paid_amount, due_date, status,
       employees:assign_to_employee ( id, full_name )
     `);
 
@@ -38,10 +39,19 @@ export const ReportsPage = () => {
           employee: emp.full_name,
           totalBilling: 0,
           totalPaid: 0,
+          completedTasks: 0, // New field
+          pendingTasks: 0,   // New field
         };
       }
       grouped[emp.id].totalBilling += t.billing_amount || 0;
       grouped[emp.id].totalPaid += t.paid_amount || 0;
+
+      // UPDATED: Logic to count tasks based on status
+      if (t.status === "completed") {
+        grouped[emp.id].completedTasks += 1;
+      } else {
+        grouped[emp.id].pendingTasks += 1;
+      }
     });
 
     setReportData(Object.values(grouped));
@@ -81,7 +91,24 @@ export const ReportsPage = () => {
             <User className="w-8 h-8 text-blue-500 mb-2" />
             <h3 className="text-lg font-bold text-gray-700">{r.employee}</h3>
             <p className="text-sm text-gray-500 mb-4">Employee Report</p>
-            <div className="w-full space-y-2">
+            
+            {/* UPDATED: Task Count Display Section */}
+            <div className="flex w-full gap-2 mb-4">
+               <div className="flex-1 bg-green-50 p-2 rounded-lg border border-green-100">
+                  <div className="flex items-center justify-center gap-1 text-green-700 font-bold">
+                    <ClipboardList size={14}/> {r.completedTasks}
+                  </div>
+                  <div className="text-[10px] text-green-600 uppercase font-bold">Done</div>
+               </div>
+               <div className="flex-1 bg-orange-50 p-2 rounded-lg border border-orange-100">
+                  <div className="flex items-center justify-center gap-1 text-orange-700 font-bold">
+                    <Clock size={14}/> {r.pendingTasks}
+                  </div>
+                  <div className="text-[10px] text-orange-600 uppercase font-bold">Pending</div>
+               </div>
+            </div>
+
+            <div className="w-full space-y-2 border-t pt-4">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Total Billing:</span>
                 <span className="font-semibold">₹{r.totalBilling}</span>

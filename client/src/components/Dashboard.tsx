@@ -7,22 +7,17 @@ import {
   Cell,
   Tooltip as ReTooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
 } from "recharts";
 import {
   Users,
-  ClipboardList,
-  CheckCircle,
-  FileText,
   Calendar,
   Briefcase,
   AlertCircle
 } from "lucide-react";
 
 export const Dashboard = () => {
+  const navigate = useNavigate();
+  
   // Stats States
   const [totalCases, setTotalCases] = useState(0);
   const [totalHearings, setTotalHearings] = useState(0);
@@ -31,6 +26,7 @@ export const Dashboard = () => {
   
   // Data Lists
   const [upcomingHearings, setUpcomingHearings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
@@ -40,43 +36,58 @@ export const Dashboard = () => {
     setLoading(true);
     const today = new Date().toISOString().split('T')[0];
 
-    // 1. Fetch KPI Counts
-    const { count: caseCount } = await supabase.from("legal_cases").select("*", { count: "exact", head: true });
-    const { count: hearingCount } = await supabase.from("legal_hearings").select("*", { count: "exact", head: true });
-    const { count: custCount } = await supabase.from("customers").select("*", { count: "exact", head: true });
-    
-    setTotalCases(caseCount || 0);
-    setTotalHearings(hearingCount || 0);
-    setCustomers(custCount || 0);
+    try {
+      // 1. Fetch KPI Counts with Error Handling
+      const { count: caseCount, error: caseErr } = await supabase.from("legal_cases").select("*", { count: "exact", head: true });
+      const { count: hearingCount, error: hearErr } = await supabase.from("legal_hearings").select("*", { count: "exact", head: true });
+      const { count: custCount, error: custErr } = await supabase.from("customers").select("*", { count: "exact", head: true });
+      
+      // FIXED: Added missing Task Pending count query based on schema
+      const { count: taskCount, error: taskErr } = await supabase
+        .from("tasks")
+        .select("*", { count: "exact", head: true })
+        .neq("status", "completed");
 
-    // 2. Fetch Upcoming Hearings (Joining with Legal Cases table)
-    const { data: hearingsData, error: hError } = await supabase
-      .from("legal_hearings")
-      .select(`
-        id,
-        hearing_date,
-        legal_cases (
-          case_number,
-          court_name
-        )
-      `)
-      .gte("hearing_date", today)
-      .order("hearing_date", { ascending: true })
-      .limit(5);
+      if (caseErr || hearErr || custErr || taskErr) {
+        console.error("Error fetching KPI counts:", { caseErr, hearErr, custErr, taskErr });
+      }
+      
+      setTotalCases(caseCount || 0);
+      setTotalHearings(hearingCount || 0);
+      setCustomers(custCount || 0);
+      setTasksInProgress(taskCount || 0);
 
-    if (!hError && hearingsData) {
-      setUpcomingHearings(hearingsData);
+      // 2. Fetch Upcoming Hearings
+      const { data: hearingsData, error: hError } = await supabase
+        .from("legal_hearings")
+        .select(`
+          id,
+          hearing_date,
+          legal_cases (
+            case_number,
+            court_name
+          )
+        `)
+        .gte("hearing_date", today)
+        .order("hearing_date", { ascending: true })
+        .limit(5);
+
+      if (hError) {
+        console.error("Error fetching hearings:", hError);
+      } else {
+        setUpcomingHearings(hearingsData || []);
+      }
+    } catch (err) {
+      console.error("Unexpected Dashboard error:", err);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
-  const [loading, setLoading] = useState(true);
-
-  // Chart Data (Mocking for layout, replace with real queries as needed)
+  // FIXED: Chart data now reflects actual distribution between total cases and specific hearings
   const caseStatusData = [
-    { name: "Active", value: totalCases },
-    { name: "Hearings", value: totalHearings },
+    { name: "Total Cases", value: totalCases },
+    { name: "Scheduled Hearings", value: totalHearings },
   ];
   const COLORS = ["#4F46E5", "#10B981"];
 
@@ -141,6 +152,7 @@ export const Dashboard = () => {
                   </div>
                   <div className="text-right">
                     <span className="text-sm font-semibold text-indigo-700 block">
+                      {/* FIXED: Date formatting adjusted to Indian locale */}
                       {new Date(h.hearing_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                     </span>
                     <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Scheduled</span>
@@ -155,7 +167,7 @@ export const Dashboard = () => {
           </div>
           <button 
             onClick={() => navigate('/legal-cases')}
-            className="w-full mt-6 text-sm text-indigo-600 font-semibold hover:underline"
+            className="w-full mt-6 text-sm text-indigo-600 font-semibold hover:underline text-center"
           >
             View All Cases →
           </button>
@@ -163,7 +175,7 @@ export const Dashboard = () => {
 
         {/* Case Distribution Chart */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-6 border-b pb-4">Case Distribution</h3>
+          <h3 className="text-lg font-bold text-gray-800 mb-6 border-b pb-4">Activity Overview</h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
