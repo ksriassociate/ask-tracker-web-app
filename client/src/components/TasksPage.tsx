@@ -40,7 +40,7 @@ export const TasksPage = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // --- FILTER STATES (Added Status) ---
+  // --- FILTER STATES ---
   const [filterEmployee, setFilterEmployee] = useState("");
   const [filterCustomer, setFilterCustomer] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -86,7 +86,7 @@ export const TasksPage = () => {
     fetchEmployees();
   }, []);
 
-  // --- FILTER LOGIC (Includes Status) ---
+  // --- FILTER LOGIC ---
   const filteredTasks = tasks.filter((task) => {
     const matchEmp = filterEmployee === "" || String(task.assign_to_employee) === filterEmployee;
     const matchCust = filterCustomer === "" || String(task.assign_to_customer) === filterCustomer;
@@ -94,7 +94,6 @@ export const TasksPage = () => {
     return matchEmp && matchCust && matchStat;
   });
 
-  // ... (handleAddClick, handleEditClick, validateTask, saveTask, deleteTask logic remains same)
   const handleAddClick = () => {
     setEditMode(false);
     setErrorMessage(null);
@@ -131,10 +130,10 @@ export const TasksPage = () => {
       due_date: currentTask.due_date || null,
       priority: currentTask.priority || null,
       status: currentTask.status || null,
-      assign_to_customer: currentTask.assign_to_customer ? parseInt(currentTask.assign_to_customer, 10) : null,
-      assign_to_employee: currentTask.assign_to_employee ? parseInt(currentTask.assign_to_employee, 10) : null,
-      billing_amount: currentTask.billing_amount ? parseFloat(currentTask.billing_amount) : null,
-      paid_amount: currentTask.paid_amount ? parseFloat(currentTask.paid_amount) : 0,
+      assign_to_customer: currentTask.assign_to_customer ? parseInt(currentTask.assign_to_customer as any, 10) : null,
+      assign_to_employee: currentTask.assign_to_employee ? parseInt(currentTask.assign_to_employee as any, 10) : null,
+      billing_amount: currentTask.billing_amount ? parseFloat(currentTask.billing_amount as any) : null,
+      paid_amount: currentTask.paid_amount ? parseFloat(currentTask.paid_amount as any) : 0,
     };
 
     let error;
@@ -153,6 +152,7 @@ export const TasksPage = () => {
   };
 
   const deleteTask = async (id: number) => {
+    if (!window.confirm("Are you sure?")) return;
     const { error } = await supabase.from("tasks").delete().eq("id", id);
     if (error) setErrorMessage("Failed to delete.");
     else fetchTasks();
@@ -199,56 +199,37 @@ export const TasksPage = () => {
           </div>
         </div>
 
-        {/* --- UPDATED FILTER BAR --- */}
         <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-gray-100">
-           <div className="flex items-center gap-2 text-gray-500 text-sm font-medium">
-             <Filter size={16} /> Filter by:
-           </div>
-           
-           {/* Employee Filter */}
-           <select 
-             className="border p-2 rounded-lg text-sm outline-none bg-gray-50"
-             value={filterEmployee}
-             onChange={(e) => setFilterEmployee(e.target.value)}
-           >
-             <option value="">All Employees</option>
-             {employees.map(emp => (
-               <option key={emp.id} value={emp.id}>{emp.full_name}</option>
-             ))}
-           </select>
+            <div className="flex items-center gap-2 text-gray-500 text-sm font-medium">
+              <Filter size={16} /> Filter by:
+            </div>
+            
+            <select className="border p-2 rounded-lg text-sm outline-none bg-gray-50" value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)}>
+              <option value="">All Employees</option>
+              {employees.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+              ))}
+            </select>
 
-           {/* Customer Filter */}
-           <select 
-             className="border p-2 rounded-lg text-sm outline-none bg-gray-50"
-             value={filterCustomer}
-             onChange={(e) => setFilterCustomer(e.target.value)}
-           >
-             <option value="">All Customers</option>
-             {customers.map(cust => (
-               <option key={cust.id} value={cust.id}>{cust.company_name}</option>
-             ))}
-           </select>
+            <select className="border p-2 rounded-lg text-sm outline-none bg-gray-50" value={filterCustomer} onChange={(e) => setFilterCustomer(e.target.value)}>
+              <option value="">All Customers</option>
+              {customers.map(cust => (
+                <option key={cust.id} value={cust.id}>{cust.company_name}</option>
+              ))}
+            </select>
 
-           {/* Status Filter */}
-           <select 
-             className="border p-2 rounded-lg text-sm outline-none bg-gray-50"
-             value={filterStatus}
-             onChange={(e) => setFilterStatus(e.target.value)}
-           >
-             <option value="">All Statuses</option>
-             <option value="Open">Open</option>
-             <option value="In Progress">In Progress</option>
-             <option value="Completed">Completed</option>
-           </select>
+            <select className="border p-2 rounded-lg text-sm outline-none bg-gray-50" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="Open">Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
 
-           {(filterEmployee || filterCustomer || filterStatus) && (
-             <button 
-               onClick={() => {setFilterEmployee(""); setFilterCustomer(""); setFilterStatus("");}} 
-               className="text-xs text-red-500 hover:underline"
-             >
-               Clear Filters
-             </button>
-           )}
+            {(filterEmployee || filterCustomer || filterStatus) && (
+              <button onClick={() => {setFilterEmployee(""); setFilterCustomer(""); setFilterStatus("");}} className="text-xs text-red-500 hover:underline">
+                Clear Filters
+              </button>
+            )}
         </div>
       </div>
 
@@ -297,9 +278,112 @@ export const TasksPage = () => {
         )}
       </div>
 
+      {/* --- RE-ADDED MODAL INPUTS --- */}
       {modalOpen && (
         <Modal title={editMode ? "Edit Task" : "Add Task"} onClose={() => setModalOpen(false)} onSave={saveTask}>
-           {/* Your existing inputs here */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Title</label>
+              <input 
+                className="border p-2 w-full rounded outline-none" 
+                value={currentTask.title || ""} 
+                onChange={(e) => setCurrentTask({ ...currentTask, title: e.target.value })} 
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Description</label>
+              <textarea 
+                className="border p-2 w-full rounded outline-none" 
+                value={currentTask.description || ""} 
+                onChange={(e) => setCurrentTask({ ...currentTask, description: e.target.value })} 
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Due Date</label>
+                <input 
+                  type="date" 
+                  className="border p-2 w-full rounded outline-none" 
+                  value={currentTask.due_date || ""} 
+                  onChange={(e) => setCurrentTask({ ...currentTask, due_date: e.target.value })} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Priority</label>
+                <select 
+                  className="border p-2 w-full rounded outline-none" 
+                  value={currentTask.priority || ""} 
+                  onChange={(e) => setCurrentTask({ ...currentTask, priority: e.target.value })}
+                >
+                  <option value="">Select</option>
+                  <option value="Low">Low</option>
+                  <option value="Normal">Normal</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Billing Amount</label>
+                <input 
+                  type="number" 
+                  className="border p-2 w-full rounded outline-none" 
+                  value={currentTask.billing_amount || ""} 
+                  onChange={(e) => setCurrentTask({ ...currentTask, billing_amount: e.target.value })} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Paid Amount</label>
+                <input 
+                  type="number" 
+                  className="border p-2 w-full rounded outline-none" 
+                  value={currentTask.paid_amount || ""} 
+                  onChange={(e) => setCurrentTask({ ...currentTask, paid_amount: e.target.value })} 
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Status</label>
+              <select 
+                className="border p-2 w-full rounded outline-none" 
+                value={currentTask.status || ""} 
+                onChange={(e) => setCurrentTask({ ...currentTask, status: e.target.value })}
+              >
+                <option value="">Select Status</option>
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Assign to Employee</label>
+                <select 
+                  className="border p-2 w-full rounded outline-none" 
+                  value={currentTask.assign_to_employee || ""} 
+                  onChange={(e) => setCurrentTask({ ...currentTask, assign_to_employee: e.target.value })}
+                >
+                  <option value="">Unassigned</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Assign to Customer</label>
+                <select 
+                  className="border p-2 w-full rounded outline-none" 
+                  value={currentTask.assign_to_customer || ""} 
+                  onChange={(e) => setCurrentTask({ ...currentTask, assign_to_customer: e.target.value })}
+                >
+                  <option value="">None</option>
+                  {customers.map(cust => (
+                    <option key={cust.id} value={cust.id}>{cust.company_name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
