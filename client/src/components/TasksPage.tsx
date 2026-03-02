@@ -3,7 +3,7 @@ import { supabase } from "../supabaseClient";
 import { Modal } from "./Modal";
 import { Plus, Upload, Download, Filter } from "lucide-react";
 
-// --- START: CORRECTED CSV LOGIC (Unchanged) ---
+// --- START: CORRECTED CSV LOGIC ---
 const escapeCsvValue = (value: any): string => {
   if (value === null || value === undefined) return "";
   const s = String(value);
@@ -40,7 +40,6 @@ export const TasksPage = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // --- FILTER STATES ---
   const [filterEmployee, setFilterEmployee] = useState("");
   const [filterCustomer, setFilterCustomer] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -86,7 +85,6 @@ export const TasksPage = () => {
     fetchEmployees();
   }, []);
 
-  // --- FILTER LOGIC ---
   const filteredTasks = tasks.filter((task) => {
     const matchEmp = filterEmployee === "" || String(task.assign_to_employee) === filterEmployee;
     const matchCust = filterCustomer === "" || String(task.assign_to_customer) === filterCustomer;
@@ -149,13 +147,6 @@ export const TasksPage = () => {
     setSuccessMessage(editMode ? "Task updated!" : "Task added!");
     setModalOpen(false);
     fetchTasks();
-  };
-
-  const deleteTask = async (id: number) => {
-    if (!window.confirm("Are you sure?")) return;
-    const { error } = await supabase.from("tasks").delete().eq("id", id);
-    if (error) setErrorMessage("Failed to delete.");
-    else fetchTasks();
   };
 
   const handleExport = () => {
@@ -247,9 +238,10 @@ export const TasksPage = () => {
                   <th className="text-left px-4 py-2">Title</th>
                   <th className="text-left px-4 py-2">Status</th>
                   <th className="text-left px-4 py-2">Priority</th>
-                  <th className="text-left px-4 py-2">Due Date</th>
-                  <th className="text-left px-4 py-2">Billing</th>
-                  <th className="text-left px-4 py-2">Paid</th>
+                  <th className="text-left px-4 py-2">Due Date/Completed Date</th>
+                  {/* --- CHANGED HEADING BELOW --- */}
+                  <th className="text-left px-4 py-2">Advance Received</th>
+                  <th className="text-left px-4 py-2">MCA Fees</th>
                   <th className="text-left px-4 py-2">Employee</th>
                   <th className="text-left px-4 py-2">Customer</th>
                   <th className="text-left px-4 py-2">Actions</th>
@@ -267,8 +259,7 @@ export const TasksPage = () => {
                     <td className="px-4 py-2">{getEmployeeName(task.assign_to_employee)}</td>
                     <td className="px-4 py-2">{getCustomerName(task.assign_to_customer)}</td>
                     <td className="px-4 py-2">
-                      <button className="text-indigo-600 hover:underline mr-2" onClick={() => handleEditClick(task)}>Edit</button>
-                      <button className="text-red-600 hover:underline" onClick={() => deleteTask(task.id)}>Delete</button>
+                      <button className="text-indigo-600 hover:underline" onClick={() => handleEditClick(task)}>Edit</button>
                     </td>
                   </tr>
                 ))}
@@ -278,43 +269,25 @@ export const TasksPage = () => {
         )}
       </div>
 
-      {/* --- RE-ADDED MODAL INPUTS --- */}
       {modalOpen && (
         <Modal title={editMode ? "Edit Task" : "Add Task"} onClose={() => setModalOpen(false)} onSave={saveTask}>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Title</label>
-              <input 
-                className="border p-2 w-full rounded outline-none" 
-                value={currentTask.title || ""} 
-                onChange={(e) => setCurrentTask({ ...currentTask, title: e.target.value })} 
-              />
+              <input className="border p-2 w-full rounded outline-none" value={currentTask.title || ""} onChange={(e) => setCurrentTask({ ...currentTask, title: e.target.value })} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Description</label>
-              <textarea 
-                className="border p-2 w-full rounded outline-none" 
-                value={currentTask.description || ""} 
-                onChange={(e) => setCurrentTask({ ...currentTask, description: e.target.value })} 
-              />
+              <textarea className="border p-2 w-full rounded outline-none" value={currentTask.description || ""} onChange={(e) => setCurrentTask({ ...currentTask, description: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Due Date</label>
-                <input 
-                  type="date" 
-                  className="border p-2 w-full rounded outline-none" 
-                  value={currentTask.due_date || ""} 
-                  onChange={(e) => setCurrentTask({ ...currentTask, due_date: e.target.value })} 
-                />
+                <label className="block text-sm font-medium text-gray-700">Due Date/Completed Date</label>
+                <input type="date" className="border p-2 w-full rounded outline-none" value={currentTask.due_date || ""} onChange={(e) => setCurrentTask({ ...currentTask, due_date: e.target.value })} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Priority</label>
-                <select 
-                  className="border p-2 w-full rounded outline-none" 
-                  value={currentTask.priority || ""} 
-                  onChange={(e) => setCurrentTask({ ...currentTask, priority: e.target.value })}
-                >
+                <select className="border p-2 w-full rounded outline-none" value={currentTask.priority || ""} onChange={(e) => setCurrentTask({ ...currentTask, priority: e.target.value })}>
                   <option value="">Select</option>
                   <option value="Low">Low</option>
                   <option value="Normal">Normal</option>
@@ -324,31 +297,18 @@ export const TasksPage = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Billing Amount</label>
-                <input 
-                  type="number" 
-                  className="border p-2 w-full rounded outline-none" 
-                  value={currentTask.billing_amount || ""} 
-                  onChange={(e) => setCurrentTask({ ...currentTask, billing_amount: e.target.value })} 
-                />
+                {/* --- CHANGED MODAL LABEL BELOW --- */}
+                <label className="block text-sm font-medium text-gray-700">Advance Received</label>
+                <input type="number" className="border p-2 w-full rounded outline-none" value={currentTask.billing_amount || ""} onChange={(e) => setCurrentTask({ ...currentTask, billing_amount: e.target.value })} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Paid Amount</label>
-                <input 
-                  type="number" 
-                  className="border p-2 w-full rounded outline-none" 
-                  value={currentTask.paid_amount || ""} 
-                  onChange={(e) => setCurrentTask({ ...currentTask, paid_amount: e.target.value })} 
-                />
+                <label className="block text-sm font-medium text-gray-700">MCA Fees</label>
+                <input type="number" className="border p-2 w-full rounded outline-none" value={currentTask.paid_amount || ""} onChange={(e) => setCurrentTask({ ...currentTask, paid_amount: e.target.value })} />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Status</label>
-              <select 
-                className="border p-2 w-full rounded outline-none" 
-                value={currentTask.status || ""} 
-                onChange={(e) => setCurrentTask({ ...currentTask, status: e.target.value })}
-              >
+              <select className="border p-2 w-full rounded outline-none" value={currentTask.status || ""} onChange={(e) => setCurrentTask({ ...currentTask, status: e.target.value })}>
                 <option value="">Select Status</option>
                 <option value="Open">Open</option>
                 <option value="In Progress">In Progress</option>
@@ -358,11 +318,7 @@ export const TasksPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Assign to Employee</label>
-                <select 
-                  className="border p-2 w-full rounded outline-none" 
-                  value={currentTask.assign_to_employee || ""} 
-                  onChange={(e) => setCurrentTask({ ...currentTask, assign_to_employee: e.target.value })}
-                >
+                <select className="border p-2 w-full rounded outline-none" value={currentTask.assign_to_employee || ""} onChange={(e) => setCurrentTask({ ...currentTask, assign_to_employee: e.target.value })}>
                   <option value="">Unassigned</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.id}>{emp.full_name}</option>
@@ -371,11 +327,7 @@ export const TasksPage = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Assign to Customer</label>
-                <select 
-                  className="border p-2 w-full rounded outline-none" 
-                  value={currentTask.assign_to_customer || ""} 
-                  onChange={(e) => setCurrentTask({ ...currentTask, assign_to_customer: e.target.value })}
-                >
+                <select className="border p-2 w-full rounded outline-none" value={currentTask.assign_to_customer || ""} onChange={(e) => setCurrentTask({ ...currentTask, assign_to_customer: e.target.value })}>
                   <option value="">None</option>
                   {customers.map(cust => (
                     <option key={cust.id} value={cust.id}>{cust.company_name}</option>
