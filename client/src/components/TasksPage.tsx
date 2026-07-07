@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { Modal } from "./Modal";
-import { Plus, Upload, Download, Filter } from "lucide-react";
+import { Plus, Upload, Download, Filter, AlertTriangle } from "lucide-react";
 
 // --- START: CORRECTED CSV LOGIC ---
 const escapeCsvValue = (value: any): string => {
@@ -39,6 +39,9 @@ export const TasksPage = () => {
   const [editMode, setEditMode] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // State to capture upcoming due reminders for the entire team
+  const [dueReminders, setDueReminders] = useState<string[]>([]);
 
   const [filterEmployee, setFilterEmployee] = useState("");
   const [filterCustomer, setFilterCustomer] = useState("");
@@ -85,6 +88,45 @@ export const TasksPage = () => {
     fetchEmployees();
   }, []);
 
+  const getEmployeeName = (id: number | null) => {
+    if (!id) return "";
+    const emp = employees.find((e) => e.id === id);
+    return emp ? emp.full_name : id;
+  };
+
+  const getCustomerName = (id: number | null) => {
+    if (!id) return "";
+    const cust = customers.find((c) => c.id === id);
+    return cust ? cust.company_name : id;
+  };
+
+  // --- AUTOMATED DUE DATE NOTIFICATION ENGINE (TEAM BULLETIN STYLE) ---
+  useEffect(() => {
+    if (tasks.length === 0 || employees.length === 0) return;
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    
+    // Format to match standard HTML5 "YYYY-MM-DD" text string formats
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+    const urgentNotifications: string[] = [];
+
+    tasks.forEach((task) => {
+      // Rule 1: Status must not be finalized/completed
+      // Rule 2: Target date explicitly matches tomorrow's date string
+      if (task.status !== "Completed" && task.due_date === tomorrowStr) {
+        const empName = getEmployeeName(task.assign_to_employee) || "Unassigned";
+        urgentNotifications.push(
+          `⚠️ Alert for [${empName}]: "${task.title}" is due tomorrow!`
+        );
+      }
+    });
+
+    setDueReminders(urgentNotifications);
+  }, [tasks, employees]);
+
   const filteredTasks = tasks.filter((task) => {
     const matchEmp = filterEmployee === "" || String(task.assign_to_employee) === filterEmployee;
     const matchCust = filterCustomer === "" || String(task.assign_to_customer) === filterCustomer;
@@ -122,14 +164,26 @@ export const TasksPage = () => {
   const saveTask = async () => {
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    // --- ENFORCED CHECKPOINT VALIDATION ---
+    if (!currentTask.assign_to_customer) {
+      setErrorMessage("Cannot save task: Tasks must be explicitly assigned to an existing customer.");
+      return; 
+    }
+    
+    if (!currentTask.assign_to_employee) {
+      setErrorMessage("Cannot save task: Tasks must be explicitly assigned to an employee to monitor schedules.");
+      return; 
+    }
+
     const taskData: any = {
       title: currentTask.title,
       description: currentTask.description,
       due_date: currentTask.due_date || null,
       priority: currentTask.priority || null,
       status: currentTask.status || null,
-      assign_to_customer: currentTask.assign_to_customer ? parseInt(currentTask.assign_to_customer as any, 10) : null,
-      assign_to_employee: currentTask.assign_to_employee ? parseInt(currentTask.assign_to_employee as any, 10) : null,
+      assign_to_customer: parseInt(currentTask.assign_to_customer as any, 10),
+      assign_to_employee: parseInt(currentTask.assign_to_employee as any, 10),
       billing_amount: currentTask.billing_amount ? parseFloat(currentTask.billing_amount as any) : null,
       paid_amount: currentTask.paid_amount ? parseFloat(currentTask.paid_amount as any) : 0,
     };
@@ -159,20 +213,20 @@ export const TasksPage = () => {
 
   const handleImport = async (e: any) => { /* logic remains same */ };
 
-  const getEmployeeName = (id: number | null) => {
-    if (!id) return "";
-    const emp = employees.find((e) => e.id === id);
-    return emp ? emp.full_name : id;
-  };
-
-  const getCustomerName = (id: number | null) => {
-    if (!id) return "";
-    const cust = customers.find((c) => c.id === id);
-    return cust ? cust.company_name : id;
-  };
-
   return (
     <div className="p-6 space-y-4">
+      {/* --- RENDER UPCOMING DUE POPUPS / BANNERS --- */}
+      {dueReminders.length > 0 && (
+        <div className="space-y-2">
+          {dueReminders.map((reminder, idx) => (
+            <div key={idx} className="bg-amber-50 border-l-4 border-amber-500 text-amber-900 p-4 rounded-r-xl shadow-sm flex items-center gap-3 animate-pulse">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <p className="text-sm font-semibold">{reminder}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="bg-white shadow rounded-2xl p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h1 className="text-2xl font-bold text-gray-700">Tasks</h1>
@@ -239,7 +293,6 @@ export const TasksPage = () => {
                   <th className="text-left px-4 py-2">Status</th>
                   <th className="text-left px-4 py-2">Priority</th>
                   <th className="text-left px-4 py-2">Due Date/Completed Date</th>
-                  {/* --- CHANGED HEADING BELOW --- */}
                   <th className="text-left px-4 py-2">Advance Received</th>
                   <th className="text-left px-4 py-2">MCA Fees</th>
                   <th className="text-left px-4 py-2">Employee</th>
@@ -297,7 +350,6 @@ export const TasksPage = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                {/* --- CHANGED MODAL LABEL BELOW --- */}
                 <label className="block text-sm font-medium text-gray-700">Advance Received</label>
                 <input type="number" className="border p-2 w-full rounded outline-none" value={currentTask.billing_amount || ""} onChange={(e) => setCurrentTask({ ...currentTask, billing_amount: e.target.value })} />
               </div>
@@ -317,18 +369,34 @@ export const TasksPage = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Assign to Employee</label>
-                <select className="border p-2 w-full rounded outline-none" value={currentTask.assign_to_employee || ""} onChange={(e) => setCurrentTask({ ...currentTask, assign_to_employee: e.target.value })}>
-                  <option value="">Unassigned</option>
+                <label className="block text-sm font-medium text-gray-700">
+                  Assign to Employee <span className="text-red-500 font-bold">* Required</span>
+                </label>
+                <select 
+                  className={`border p-2 w-full rounded outline-none transition-all ${
+                    !currentTask.assign_to_employee ? "border-red-400 bg-red-50 focus:border-red-500" : "border-gray-300 focus:border-indigo-500"
+                  }`}
+                  value={currentTask.assign_to_employee || ""} 
+                  onChange={(e) => setCurrentTask({ ...currentTask, assign_to_employee: e.target.value ? parseInt(e.target.value, 10) : null })}
+                >
+                  <option value="">-- Select Employee --</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.id}>{emp.full_name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Assign to Customer</label>
-                <select className="border p-2 w-full rounded outline-none" value={currentTask.assign_to_customer || ""} onChange={(e) => setCurrentTask({ ...currentTask, assign_to_customer: e.target.value })}>
-                  <option value="">None</option>
+                <label className="block text-sm font-medium text-gray-700">
+                  Assign to Customer <span className="text-red-500 font-bold">* Required</span>
+                </label>
+                <select 
+                  className={`border p-2 w-full rounded outline-none transition-all ${
+                    !currentTask.assign_to_customer ? "border-red-400 bg-red-50 focus:border-red-500" : "border-gray-300 focus:border-indigo-500"
+                  }`} 
+                  value={currentTask.assign_to_customer || ""} 
+                  onChange={(e) => setCurrentTask({ ...currentTask, assign_to_customer: e.target.value ? parseInt(e.target.value, 10) : null })}
+                >
+                  <option value="">-- Select Existing Customer --</option>
                   {customers.map(cust => (
                     <option key={cust.id} value={cust.id}>{cust.company_name}</option>
                   ))}
