@@ -183,7 +183,7 @@ export const TasksPage = () => {
       }
 
       const ai = new GoogleGenerativeAI(apiKey);
-      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       const customerName = getCustomerName(currentTask.assign_to_customer);
       const assigneeName = getEmployeeName(currentTask.assign_to_employee);
