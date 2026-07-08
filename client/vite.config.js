@@ -11,4 +11,7 @@ export default defineConfig({
   server: {
     port: 5173, // ✅ Lock the port so Netlify Dev can always proxy correctly
   },
+  define: {
+    'process.env': {} // 🧠 Tricks the Google AI SDK to prevent it from crashing the browser
+  }
 });
