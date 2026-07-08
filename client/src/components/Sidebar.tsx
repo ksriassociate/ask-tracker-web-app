@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Gavel,
+  // 🔴 1. ADDED: Sparkles icon for your AI module
+  Sparkles, 
 } from "lucide-react";
 
 interface SidebarProps {
@@ -34,6 +36,12 @@ export const Sidebar = ({
     { path: "/legal-cases", label: "Legal Cases", icon: <Gavel size={20} /> },
     { path: "/reports", label: "Reports", icon: <BarChart3 size={20} /> },
     { path: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
+    { 
+      // 🔴 2. ADDED: Link structure matching your App.tsx route setup
+      path: "/aoc4-extractor", 
+      label: "AOC-4 Extractor", 
+      icon: <Sparkles size={20} className="text-indigo-400" /> 
+    },
   ];
 
   return (

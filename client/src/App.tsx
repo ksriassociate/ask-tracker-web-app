@@ -10,6 +10,8 @@ import { TasksPage } from "./components/TasksPage";
 import { InvoicesPage } from "./components/InvoicesPage";
 import { ReportsPage } from "./components/ReportsPage";
 import { LegalCasesPage } from "./components/LegalCasesPage";
+// 🔴 1. ADDED: Import your new tool component here
+import { Aoc4Processor } from "./components/Aoc4Processor"; 
 
 export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -48,6 +50,8 @@ export default function App() {
             <Route path="/legal-cases" element={<LegalCasesPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/invoices" element={<InvoicesPage />} />
+            {/* 🔴 2. ADDED: This creates the URL link route for your tool */}
+            <Route path="/aoc4-extractor" element={<Aoc4Processor />} /> 
           </Routes>
         </main>
       </div>
