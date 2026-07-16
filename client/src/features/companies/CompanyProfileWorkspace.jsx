@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../supabaseClient";
-
-const SUPPORTING_DOCUMENT_BUCKET = "company-supporting-documents";
+import { extractLocalDocumentText } from "./extractLocalDocumentText";
 
 const FULL_COMPLIANCE_DATABASE = [
   { form_code: "SPICe+ (INC-32)", form_name: "Company Incorporation", fields: [["companyName", "Company Name"], ["authorizedCapital", "Authorized Capital"]], supported_docs: ["MoA", "AoA", "INC-9"] },
@@ -31,6 +30,7 @@ export default function CompanyProfileWorkspace({ companyData }) {
   const [error, setError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
   const [sharingConfirmed, setSharingConfirmed] = useState(false);
+  const [extractingFile, setExtractingFile] = useState(false);
 
   const activeForm = useMemo(
     () => FULL_COMPLIANCE_DATABASE.find((form) => form.form_code === activeFormCode),
@@ -68,19 +68,6 @@ export default function CompanyProfileWorkspace({ companyData }) {
     });
   }, [activeForm]);
 
-  const uploadAttachment = async () => {
-    if (!uploadedFile) return null;
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) throw new Error("Sign in before uploading an attachment.");
-    const safeName = uploadedFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const filePath = `${authData.user.id}/${company.id}/${Date.now()}-${safeName}`;
-    const { error: uploadError } = await supabase.storage
-      .from(SUPPORTING_DOCUMENT_BUCKET)
-      .upload(filePath, uploadedFile, { contentType: uploadedFile.type, upsert: false });
-    if (uploadError) throw uploadError;
-    return filePath;
-  };
-
   const handleProcessAndMerge = async () => {
     if (!company) return setError("Company data has not loaded yet.");
     if (!sharingConfirmed) return setError("Confirm that you are authorised to share the minimum necessary facts with the configured research and drafting providers.");
@@ -88,16 +75,16 @@ export default function CompanyProfileWorkspace({ companyData }) {
     setError("");
     setCopyMessage("");
     try {
-      const attachmentPath = await uploadAttachment();
+      setExtractingFile(Boolean(uploadedFile));
+      const attachmentText = uploadedFile ? await extractLocalDocumentText(uploadedFile) : "";
       const { data, error: functionError } = await supabase.functions.invoke("generate-compliance-documents", {
         body: {
           companyId: company.id,
           formCode: activeForm.form_code,
           formName: activeForm.form_name,
           fields: editableFields,
-          notes: textInput,
+          notes: `${textInput}\n\n${attachmentText ? `Temporary local file extract (${uploadedFile.name}):\n${attachmentText}` : ""}`.trim(),
           requiredSupportingDocuments: activeForm.supported_docs,
-          attachmentPath,
           dataProcessingConsent: true,
         },
       });
@@ -113,6 +100,7 @@ export default function CompanyProfileWorkspace({ companyData }) {
       setError(processingError.message || "Failed to generate documents.");
     } finally {
       setIsLoading(false);
+      setExtractingFile(false);
     }
   };
 
@@ -135,12 +123,12 @@ export default function CompanyProfileWorkspace({ companyData }) {
         <div className="bg-slate-900 p-5 rounded-xl">
           <label className="block text-xs font-bold mb-2">Instructions / fact notes</label>
           <textarea value={textInput} onChange={(event) => setTextInput(event.target.value)} className="w-full h-32 bg-slate-950 p-3 rounded text-xs" placeholder="Describe the filing, dates, facts, and specific document requirements..." />
-          <label className="block text-xs font-bold mt-4 mb-2">Optional supporting file</label>
-          <input type="file" accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg" onChange={(event) => setUploadedFile(event.target.files?.[0] || null)} className="text-xs" />
-          {uploadedFile && <p className="text-[11px] text-slate-400 mt-2">Ready to upload: {uploadedFile.name}</p>}
+          <label className="block text-xs font-bold mt-4 mb-2">Optional supporting file — temporary only</label>
+          <input type="file" accept=".pdf,.docx,.xlsx,.xls,.txt,.csv" onChange={(event) => setUploadedFile(event.target.files?.[0] || null)} className="text-xs" />
+          {uploadedFile && <p className="text-[11px] text-slate-400 mt-2">Selected: {uploadedFile.name}. It will be read locally for this draft only and will not be uploaded or stored.</p>}
           <p className="text-[11px] text-slate-500 mt-4">Expected supporting documents: {activeForm.supported_docs.join(", ")}</p>
           <label className="flex gap-2 text-[11px] text-slate-400 mt-3"><input type="checkbox" checked={sharingConfirmed} onChange={(event) => setSharingConfirmed(event.target.checked)} /> I am authorised to share the minimum necessary facts with the configured research and drafting providers. I will not enter passwords, OTPs, bank details, or unredacted identity documents.</label>
-          <button disabled={isLoading || !company} onClick={handleProcessAndMerge} className="w-full mt-4 bg-blue-600 disabled:opacity-50 py-2 rounded font-bold text-xs uppercase">{isLoading ? "Processing..." : "Process & Generate"}</button>
+          <button disabled={isLoading || !company} onClick={handleProcessAndMerge} className="w-full mt-4 bg-blue-600 disabled:opacity-50 py-2 rounded font-bold text-xs uppercase">{extractingFile ? "Reading file locally..." : isLoading ? "Processing..." : "Process & Generate"}</button>
         </div>
         <div className="bg-slate-900 p-5 rounded-xl">
           <h2 className="text-sm font-bold mb-4">{activeForm.form_name} Fields</h2>
