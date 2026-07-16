@@ -9,8 +9,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Gavel,
-  // 🔴 1. ADDED: Sparkles icon for your AI module
   Sparkles, 
+  // ✨ Added GitBranch icon to represent the isolated staging/trial panel
+  GitBranch,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -37,10 +38,15 @@ export const Sidebar = ({
     { path: "/reports", label: "Reports", icon: <BarChart3 size={20} /> },
     { path: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
     { 
-      // 🔴 2. ADDED: Link structure matching your App.tsx route setup
       path: "/aoc4-extractor", 
       label: "AOC-4 Extractor", 
       icon: <Sparkles size={20} className="text-indigo-400" /> 
+    },
+    // 🛠️ ISOLATED ADDITION: Completely separate staging portal
+    { 
+      path: "/smart-router-v2", 
+      label: "Smart Router V2", 
+      icon: <GitBranch size={20} className="text-amber-400" /> 
     },
   ];
 

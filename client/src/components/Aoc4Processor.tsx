@@ -9,98 +9,96 @@ export const Aoc4Processor = () => {
   const [processing, setProcessing] = useState(false);
   const [extractedData, setExtractedData] = useState<string | null>(null);
 
-  // Default Template Config matching your exact 19-point audit checklist structure
-  const [templateConfig, setTemplateConfig] = useState(
-    JSON.stringify(
-      {
-        "1_company_name": "Extract full name of the company from Balance Sheet heading",
-        "2_corporate_identity_number_cin": "Extract 21-digit CIN string from financial statements",
-        "3_date_of_signing": "Date when Balance Sheet is signed (below Directors/Auditors signatures)",
-        "4_directors_signing_financial_statements": "Name of Director(s) with DIN (Format: DIN XXXXXXXX – Name)",
-        "5_holding_subsidiary_status": "Whether the company is a subsidiary. Name of shareholder holding more than 51% (check Notes -> Share Capital -> Shareholding Pattern)",
-        "6_nature_of_holding_company": "Based on shareholder identification, infer or look up whether Holding Company is Indian or Foreign",
-        "7_auditor_details": "Auditor Name, Firm Registration No., Membership No., and professional firm address",
-        "8_financial_year": "Current Financial Year and Previous Financial Year format matching Balance Sheet heading",
-        "balance_sheet_liabilities": {
-          "9a_share_capital": "Amount in ₹",
-          "9b_reserves_and_surplus": "Amount in ₹",
-          "9c_money_received_against_share_warrants": "Amount in ₹",
-          "9d_long_term_borrowings": "Amount in ₹",
-          "9e_deferred_tax_liabilities_net": "Amount in ₹",
-          "9f_other_long_term_liabilities": "Amount in ₹",
-          "9g_long_term_provisions": "Amount in ₹",
-          "9h_short_term_borrowings": "Amount in ₹",
-          "9i_trade_payables": "Amount in ₹",
-          "9j_trade_payables_break_up": "MSME Dues vs Other than MSME Dues break-up details (Notes to Trade Payables)",
-          "9k_other_current_liabilities": "Amount in ₹",
-          "9l_short_term_provisions": "Amount in ₹",
-          "9m_total_liabilities": "Total balance sum line item"
-        },
-        "balance_sheet_assets": {
-          "10a_property_plant_and_equipment": "Amount in ₹",
-          "10b_intangible_assets": "Amount in ₹",
-          "10c_capital_work_in_progress": "Amount in ₹",
-          "10d_intangible_assets_under_development": "Amount in ₹",
-          "10e_non_current_investments": "Amount in ₹",
-          "10f_deferred_tax_assets_net": "Amount in ₹",
-          "10g_long_term_loans_and_advances": "Amount in ₹",
-          "10h_other_non_current_assets": "Amount in ₹",
-          "10i_current_investments": "Amount in ₹",
-          "10j_inventories": "Amount in ₹",
-          "10k_trade_receivables": "Amount in ₹",
-          "10l_cash_and_cash_equivalents": "Amount in ₹",
-          "10m_short_term_loans_and_advances": "Amount in ₹",
-          "10n_other_current_assets": "Amount in ₹"
-        },
-        "long_term_borrowings_note_breakup": {
-          "11a_bonds_debentures": "Amount in ₹",
-          "11b_term_loans_from_banks": "Amount in ₹",
-          "11c_term_loans_from_others": "Amount in ₹",
-          "11d_deferred_payment_liabilities": "Amount in ₹",
-          "11e_deposits": "Amount in ₹",
-          "11f_loans_and_advances_from_related_parties": "Amount in ₹",
-          "11g_long_term_maturities_of_finance_lease_obligations": "Amount in ₹",
-          "11h_other_loans_and_advances": "Amount in ₹",
-          "11i_total_long_term_borrowings_unsecured": "Sum total"
-        },
-        "short_term_borrowings_note_breakup": {
-          "12a_loans_repayable_on_demand_from_banks": "Amount in ₹",
-          "12b_loans_repayable_on_demand_from_other_parties": "Amount in ₹",
-          "12c_loans_and_advances_from_related_parties": "Amount in ₹",
-          "12d_deposits": "Amount in ₹",
-          "12e_other_loans_and_advances": "Amount in ₹",
-          "12f_total_short_term_borrowings_unsecured": "Sum total"
-        },
-        "long_term_loans_and_advances_breakup": {
-          "13a_nature": "Unsecured Considered Good / Secured / Doubtful classification notes",
-          "13b_capital_advances": "Amount in ₹",
-          "13c_loans_and_advances_to_related_parties": "Amount in ₹",
-          "13d_other_loans_and_advances": "Amount in ₹",
-          "13e_total_long_term_loans_and_advances": "Sum total",
-          "13f_less_provisions_allowances_for_bad_debts": "Deduction balance",
-          "13g_net_long_term_loans_and_advances": "Net position",
-          "13h_loans_due_by_directors_or_officers": "Amount in ₹"
-        },
-        "trade_receivables_breakup": {
-          "14a_secured_considered_good": "Amount in ₹",
-          "14b_unsecured_considered_good": "Amount in ₹",
-          "14c_doubtful": "Amount in ₹",
-          "14d_total_trade_receivables": "Sum (a+b+c)",
-          "14e_less_provision_for_bad_debts": "Deduction entry",
-          "14f_net_trade_receivables": "Net position (d-e)",
-          "14g_receivables_due_from_directors_or_officers": "Amount in ₹"
-        },
-        "analytical_checks": {
-          "15_share_capital_reduction_check": "Compare previous year share capital with current. If Prev > Current, verify buy-back execution (Yes/No with details)",
-          "16_subsidiary_investment_check": "Check Investment Notes for investments in subsidiary units and extract absolute entity names",
-          "17_calculated_net_worth": "Calculate and report absolute sum (Share Capital + Reserves & Surplus)",
-          "18_share_capital_expansion_check": "Compare previous year share capital with current. If Current > Prev, extract amount issued during year",
-          "19_additional_observations_and_remarks": "General compliance audit text notes or processing notes from review analysis context"
-        }
+  // Hardcoded 19-point audit checklist structure running entirely in the background
+  const templateConfig = JSON.stringify(
+    {
+      "1_company_name": "Extract full name of the company from Balance Sheet heading",
+      "2_corporate_identity_number_cin": "Extract 21-digit CIN string from financial statements",
+      "3_date_of_signing": "Date when Balance Sheet is signed (below Directors/Auditors signatures)",
+      "4_directors_signing_financial_statements": "Name of Director(s) with DIN (Format: DIN XXXXXXXX – Name)",
+      "5_holding_subsidiary_status": "Whether the company is a subsidiary. Name of shareholder holding more than 51% (check Notes -> Share Capital -> Shareholding Pattern)",
+      "6_nature_of_holding_company": "Based on shareholder identification, infer or look up whether Holding Company is Indian or Foreign",
+      "7_auditor_details": "Auditor Name, Firm Registration No., Membership No., and professional firm address",
+      "8_financial_year": "Current Financial Year and Previous Financial Year format matching Balance Sheet heading",
+      "balance_sheet_liabilities": {
+        "9a_share_capital": "Amount in ₹",
+        "9b_reserves_and_surplus": "Amount in ₹",
+        "9c_money_received_against_share_warrants": "Amount in ₹",
+        "9d_long_term_borrowings": "Amount in ₹",
+        "9e_deferred_tax_liabilities_net": "Amount in ₹",
+        "9f_other_long_term_liabilities": "Amount in ₹",
+        "9g_long_term_provisions": "Amount in ₹",
+        "9h_short_term_borrowings": "Amount in ₹",
+        "9i_trade_payables": "Amount in ₹",
+        "9j_trade_payables_break_up": "MSME Dues vs Other than MSME Dues break-up details (Notes to Trade Payables)",
+        "9k_other_current_liabilities": "Amount in ₹",
+        "9l_short_term_provisions": "Amount in ₹",
+        "9m_total_liabilities": "Total balance sum line item"
       },
-      null,
-      2
-    )
+      "balance_sheet_assets": {
+        "10a_property_plant_and_equipment": "Amount in ₹",
+        "10b_intangible_assets": "Amount in ₹",
+        "10c_capital_work_in_progress": "Amount in ₹",
+        "10d_intangible_assets_under_development": "Amount in ₹",
+        "10e_non_current_investments": "Amount in ₹",
+        "10f_deferred_tax_assets_net": "Amount in ₹",
+        "10g_long_term_loans_and_advances": "Amount in ₹",
+        "10h_other_non_current_assets": "Amount in ₹",
+        "10i_current_investments": "Amount in ₹",
+        "10j_inventories": "Amount in ₹",
+        "10k_trade_receivables": "Amount in ₹",
+        "10l_cash_and_cash_equivalents": "Amount in ₹",
+        "10m_short_term_loans_and_advances": "Amount in ₹",
+        "10n_other_current_assets": "Amount in ₹"
+      },
+      "long_term_borrowings_note_breakup": {
+        "11a_bonds_debentures": "Amount in ₹",
+        "11b_term_loans_from_banks": "Amount in ₹",
+        "11c_term_loans_from_others": "Amount in ₹",
+        "11d_deferred_payment_liabilities": "Amount in ₹",
+        "11e_deposits": "Amount in ₹",
+        "11f_loans_and_advances_from_related_parties": "Amount in ₹",
+        "11g_long_term_maturities_of_finance_lease_obligations": "Amount in ₹",
+        "11h_other_loans_and_advances": "Amount in ₹",
+        "11i_total_long_term_borrowings_unsecured": "Sum total"
+      },
+      "short_term_borrowings_note_breakup": {
+        "12a_loans_repayable_on_demand_from_banks": "Amount in ₹",
+        "12b_loans_repayable_on_demand_from_other_parties": "Amount in ₹",
+        "12c_loans_and_advances_from_related_parties": "Amount in ₹",
+        "12d_deposits": "Amount in ₹",
+        "12e_other_loans_and_advances": "Amount in ₹",
+        "12f_total_short_term_borrowings_unsecured": "Sum total"
+      },
+      "long_term_loans_and_advances_breakup": {
+        "13a_nature": "Unsecured Considered Good / Secured / Doubtful classification notes",
+        "13b_capital_advances": "Amount in ₹",
+        "13c_loans_and_advances_to_related_parties": "Amount in ₹",
+        "13d_other_loans_and_advances": "Amount in ₹",
+        "13e_total_long_term_loans_and_advances": "Sum total",
+        "13f_less_provisions_allowances_for_bad_debts": "Deduction balance",
+        "13g_net_long_term_loans_and_advances": "Net position",
+        "13h_loans_due_by_directors_or_officers": "Amount in ₹"
+      },
+      "trade_receivables_breakup": {
+        "14a_secured_considered_good": "Amount in ₹",
+        "14b_unsecured_considered_good": "Amount in ₹",
+        "14c_doubtful": "Amount in ₹",
+        "14d_total_trade_receivables": "Sum (a+b+c)",
+        "14e_less_provision_for_bad_debts": "Deduction entry",
+        "14f_net_trade_receivables": "Net position (d-e)",
+        "14g_receivables_due_from_directors_or_officers": "Amount in ₹"
+      },
+      "analytical_checks": {
+        "15_share_capital_reduction_check": "Compare previous year share capital with current. If Prev > Current, verify buy-back execution (Yes/No with details)",
+        "16_subsidiary_investment_check": "Check Investment Notes for investments in subsidiary units and extract absolute entity names",
+        "17_calculated_net_worth": "Calculate and report absolute sum (Share Capital + Reserves & Surplus)",
+        "18_share_capital_expansion_check": "Compare previous year share capital with current. If Current > Prev, extract amount issued during year",
+        "19_additional_observations_and_remarks": "General compliance audit text notes or processing notes from review analysis context"
+      }
+    },
+    null,
+    2
   );
 
   const parseExcelFile = (file: File): Promise<string> => {
@@ -187,7 +185,6 @@ export const Aoc4Processor = () => {
     return fallback;
   };
 
-  // Sanitizer: Strips out markdown syntax backticks ```json ... ``` seamlessly
   const getCleanedJsonData = (rawText: string) => {
     let cleanText = rawText.trim();
     if (cleanText.startsWith("```")) {
@@ -233,7 +230,7 @@ export const Aoc4Processor = () => {
         .join("");
 
       const htmlContent = `
-        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='[http://www.w3.org/TR/REC-html40](http://www.w3.org/TR/REC-html40)'>
         <head><title>Financial Review Checklist</title>
         <style>
           body { font-family: "Calibri", sans-serif; margin: 20px; }
@@ -275,13 +272,6 @@ export const Aoc4Processor = () => {
 
   const handleProcessDocument = async () => {
     if (!file) return;
-
-    try {
-      JSON.parse(templateConfig);
-    } catch (e) {
-      alert("Invalid Destination Template Structure. Ensure text is valid JSON config string.");
-      return;
-    }
 
     setProcessing(true);
     setExtractedData(null);
@@ -363,24 +353,11 @@ export const Aoc4Processor = () => {
               <span className="text-sm font-semibold text-gray-700">{file ? file.name : "Drop Audit File Sheet Here"}</span>
               <span className="text-[11px] text-gray-400 mt-1">Accepts any format including PDFs, Excel sheets, Word files, or Scans</span>
             </label>
-          </div>
 
-          <div className="bg-white p-5 rounded-2xl shadow border border-gray-100 space-y-3">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xs font-bold tracking-wider uppercase text-gray-400">Step 2: Destination Review Checklist Schema</h3>
-              <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold uppercase tracking-wide">JSON Format</span>
-            </div>
-            <textarea
-              rows={12}
-              className="w-full border border-gray-200 rounded-xl p-3 text-xs font-mono bg-slate-900 text-slate-200 outline-none focus:border-indigo-500 shadow-inner leading-relaxed"
-              value={templateConfig}
-              onChange={(e) => setTemplateConfig(e.target.value)}
-            />
-            
             <button
               onClick={handleProcessDocument}
               disabled={processing || !file}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition text-sm shadow-md"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-100 disabled:text-gray-400 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition text-sm shadow-md"
             >
               {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Ingesting Data & Formulating Matrix Fields...</> : <><Sparkles className="w-4 h-4" /> Execute Intelligent Check Extraction</>}
             </button>
