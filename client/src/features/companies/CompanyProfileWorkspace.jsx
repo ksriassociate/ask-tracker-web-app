@@ -31,6 +31,7 @@ export default function CompanyProfileWorkspace({ companyData }) {
   const [copyMessage, setCopyMessage] = useState("");
   const [sharingConfirmed, setSharingConfirmed] = useState(false);
   const [extractingFile, setExtractingFile] = useState(false);
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const activeForm = useMemo(
     () => FULL_COMPLIANCE_DATABASE.find((form) => form.form_code === activeFormCode),
@@ -124,8 +125,9 @@ export default function CompanyProfileWorkspace({ companyData }) {
           <label className="block text-xs font-bold mb-2">Instructions / fact notes</label>
           <textarea value={textInput} onChange={(event) => setTextInput(event.target.value)} className="w-full h-32 bg-slate-950 p-3 rounded text-xs" placeholder="Describe the filing, dates, facts, and specific document requirements..." />
           <label className="block text-xs font-bold mt-4 mb-2">Optional supporting file — temporary only</label>
-          <input type="file" accept=".pdf,.docx,.xlsx,.xls,.txt,.csv" onChange={(event) => setUploadedFile(event.target.files?.[0] || null)} className="text-xs" />
-          {uploadedFile && <p className="text-[11px] text-slate-400 mt-2">Selected: {uploadedFile.name}. It will be read locally for this draft only and will not be uploaded or stored.</p>}
+          <input key={fileInputKey} type="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.xls,.txt,.csv" onChange={(event) => setUploadedFile(event.target.files?.[0] || null)} className="text-xs" />
+          {uploadedFile && <div className="mt-2 flex items-center justify-between gap-3"><p className="text-[11px] text-slate-400">Selected: {uploadedFile.name}. It will be read locally for this draft only and will not be uploaded or stored.</p><button type="button" onClick={() => { setUploadedFile(null); setFileInputKey((value) => value + 1); }} className="shrink-0 rounded border border-slate-600 px-2 py-1 text-[10px] font-bold text-slate-300 hover:bg-slate-800">Remove file</button></div>}
+          <p className="text-[11px] leading-relaxed text-slate-500 mt-2">For scanned PDFs, FirmAxis processes only the first 10 pages using browser-based OCR. For images, the selected image is processed locally. Files are not uploaded or stored. Review extracted text before generating a draft.</p>
           <p className="text-[11px] text-slate-500 mt-4">Expected supporting documents: {activeForm.supported_docs.join(", ")}</p>
           <label className="flex gap-2 text-[11px] text-slate-400 mt-3"><input type="checkbox" checked={sharingConfirmed} onChange={(event) => setSharingConfirmed(event.target.checked)} /> I am authorised to share the minimum necessary facts with the configured research and drafting providers. I will not enter passwords, OTPs, bank details, or unredacted identity documents.</label>
           <button disabled={isLoading || !company} onClick={handleProcessAndMerge} className="w-full mt-4 bg-blue-600 disabled:opacity-50 py-2 rounded font-bold text-xs uppercase">{extractingFile ? "Reading file locally..." : isLoading ? "Processing..." : "Process & Generate"}</button>
