@@ -9,22 +9,55 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_TEXT_CHARS = 30000;
-const MAX_OCR_PAGES = 10;
+const MAX_OCR_PAGES = 50;
 
 async function recogniseImage(source) {
-  const result = await recognize(source, "eng", { logger: () => undefined });
-  return result.data.text || "";
+  const result = await recognize(source, "eng", {
+    logger: () => undefined,
+  });
+  return String(result.data.text || "").trim();
 }
 
 async function pageAsCanvas(page) {
-  const viewport = page.getViewport({ scale: 1.5 });
+  // Higher resolution materially improves OCR on court/MCA scans and stamps.
+  const viewport = page.getViewport({ scale: 3 });
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(viewport.width);
   canvas.height = Math.ceil(viewport.height);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Your browser could not prepare the scanned PDF for OCR.");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
   await page.render({ canvasContext: context, viewport }).promise;
   return canvas;
+}
+
+function canvasToBytes(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) return reject(new Error("Could not render the PDF page."));
+      resolve(new Uint8Array(await blob.arrayBuffer()));
+    }, "image/png");
+  });
+}
+
+// Used only when OCR cannot read a scan. It preserves the source pages visually
+// in a Word file; those page images themselves are not editable text.
+export async function renderScannedPdfPages(file, limit = 50) {
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const pages = [];
+  for (let number = 1; number <= Math.min(pdf.numPages, limit); number += 1) {
+    const page = await pdf.getPage(number);
+    const viewport = page.getViewport({ scale: 1.35 });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Your browser could not render the scanned PDF.");
+    context.fillStyle = "#ffffff"; context.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: context, viewport }).promise;
+    pages.push({ data: await canvasToBytes(canvas), width: viewport.width, height: viewport.height });
+  }
+  return pages;
 }
 
 export async function extractLocalDocumentText(file) {
@@ -39,8 +72,11 @@ export async function extractLocalDocumentText(file) {
       const page = await pdf.getPage(number);
       const content = await page.getTextContent();
       const selectableText = content.items.map((item) => item.str || "").join(" ").trim();
-      if (selectableText.length >= 30) pages.push(selectableText);
-      else if (number <= MAX_OCR_PAGES) pages.push(await recogniseImage(await pageAsCanvas(page)));
+      if (selectableText.length >= 15) pages.push(selectableText);
+      else if (number <= MAX_OCR_PAGES) {
+        const ocrText = await recogniseImage(await pageAsCanvas(page));
+        pages.push(ocrText || `[VERIFY: no readable OCR text detected on scanned page ${number}]`);
+      }
       else pages.push("[VERIFY: additional scanned PDF pages were not OCR processed]");
     }
     return pages.join("\n\n").slice(0, MAX_TEXT_CHARS);

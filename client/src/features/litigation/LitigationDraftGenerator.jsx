@@ -1,196 +1,58 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../supabaseClient";
+import { extractLocalDocumentText } from "../companies/extractLocalDocumentText";
 
-const COURT_MATTERS = [
-  {
-    id: "OM_REJOINDER",
-    matterName: "Oppression & Mismanagement (Sections 241–242)",
-    forum: "NCLT",
-    fields: [
-      ["petitionNo", "Company Petition (CP) No."],
-      ["petitionerName", "Petitioner name"],
-      ["respondentName", "Respondent name"],
-      ["bench", "NCLT Bench"],
-    ],
-  },
-  {
-    id: "COMP_EXT_TIME",
-    matterName: "Condonation of Delay / Extension of Time", 
-    forum: "NCLT / Regional Director",
-    fields: [
-      ["formDelayed", "Delayed MCA form"],
-      ["delayPeriod", "Delay period (days)"],
-      ["reasonForDelay", "Reason for delay"],
-      ["bench", "Forum / Bench"],
-    ],
-  },
-  {
-    id: "NCLT_SCHEME_APPLICATION",
-    matterName: "Scheme / Merger / Arrangement Application",
-    forum: "NCLT",
-    fields: [["applicationNo", "Application / CA number (if allotted)"], ["transferorCompany", "Transferor company"], ["transfereeCompany", "Transferee company"], ["bench", "NCLT Bench"]],
-  },
-  {
-    id: "NCLAT_COMPANY_APPEAL",
-    matterName: "Company Appeal before NCLAT",
-    forum: "NCLAT",
-    fields: [["appealNo", "Company Appeal (AT) number"], ["impugnedOrder", "Impugned NCLT order date / reference"], ["appellantName", "Appellant name"], ["respondentName", "Respondent name"], ["bench", "NCLAT Bench"]],
-  },
-  {
-    id: "NCLAT_IBC_APPEAL",
-    matterName: "Insolvency Appeal before NCLAT",
-    forum: "NCLAT",
-    fields: [["appealNo", "Company Appeal (AT) (Insolvency) number"], ["impugnedOrder", "Impugned NCLT / AA order date"], ["appellantName", "Appellant name"], ["respondentName", "Respondent name"], ["bench", "NCLAT Bench"]],
-  },
+const MATTERS = [
+  { id: "OM_REJOINDER", name: "Oppression & Mismanagement (Sections 241–242)", forum: "NCLT", fields: [["petitionNo", "Company Petition (CP) No."], ["petitionerName", "Petitioner name"], ["respondentName", "Respondent name"], ["bench", "NCLT Bench"]] },
+  { id: "COMP_EXT_TIME", name: "Condonation of Delay / Extension of Time", forum: "NCLT / Regional Director", fields: [["formDelayed", "Delayed MCA form"], ["delayPeriod", "Delay period (days)"], ["reasonForDelay", "Reason for delay"], ["bench", "Forum / Bench"]] },
+  { id: "NCLAT_COMPANY_APPEAL", name: "Company Appeal before NCLAT", forum: "NCLAT", fields: [["appealNo", "Company Appeal (AT) number"], ["impugnedOrder", "Impugned order date / reference"], ["appellantName", "Appellant name"], ["respondentName", "Respondent name"], ["bench", "NCLAT Bench"]] },
+  { id: "ORDER_COPY_SUBMISSION", name: "Covering Letter — Submission of Original Order Copy and Two Copies", forum: "NCLT / NCLAT", fields: [["recipient", "Registry / filing counter / recipient"], ["orderDate", "Order date"], ["orderReference", "Order / case reference"], ["originalDocument", "Original document being submitted"], ["copyCount", "Additional copies (default: 2)"]] },
+  { id: "OTHER_CUSTOM_DOCUMENT", name: "Other — Custom document from my instructions", forum: "As specified in instructions", fields: [["documentTitle", "Document title to generate"], ["recipient", "Recipient / authority (if applicable)"], ["purpose", "Purpose / relief / submission required"]] },
 ];
 
-export default function LitigationDraftGenerator() {
-  const [customers, setCustomers] = useState([]);
-  const [customerId, setCustomerId] = useState("");
-  const [selectedMatterId, setSelectedMatterId] = useState(COURT_MATTERS[0].id);
-  const [fieldInputs, setFieldInputs] = useState({});
-  const [rawNotes, setRawNotes] = useState("");
-  const [documents, setDocuments] = useState([]);
-  const [sources, setSources] = useState([]);
-  const [activeDocument, setActiveDocument] = useState(null);
-  const [isDrafting, setIsDrafting] = useState(false);
-  const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [confidentialityConfirmed, setConfidentialityConfirmed] = useState(false);
+const fieldClass = "w-full rounded border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-100";
+const caseLabel = (item) => `${item.case_number} — ${item.petitioner_vs_respondent} (${item.court_name}${item.location ? `, ${item.location}` : ""})`;
 
-  const selectedMatter = useMemo(
-    () => COURT_MATTERS.find((matter) => matter.id === selectedMatterId),
-    [selectedMatterId]
-  );
+export default function LitigationDraftGenerator() {
+  const [customers, setCustomers] = useState([]); const [cases, setCases] = useState([]);
+  const [customerId, setCustomerId] = useState(""); const [legalCaseId, setLegalCaseId] = useState("");
+  const [matterId, setMatterId] = useState(MATTERS[0].id); const [fields, setFields] = useState({ copyCount: "2" }); const [notes, setNotes] = useState("");
+  const [attachment, setAttachment] = useState(null); const [attachmentText, setAttachmentText] = useState(""); const [attachmentError, setAttachmentError] = useState(""); const [attachmentBusy, setAttachmentBusy] = useState(false); const [attachmentKey, setAttachmentKey] = useState(0);
+  const [documents, setDocuments] = useState([]); const [activeDocument, setActiveDocument] = useState(null); const [sources, setSources] = useState([]); const [drafting, setDrafting] = useState(false); const [error, setError] = useState(""); const [consent, setConsent] = useState(false); const [copied, setCopied] = useState(false);
+  const matter = useMemo(() => MATTERS.find((item) => item.id === matterId), [matterId]);
 
   useEffect(() => {
-    const loadCustomers = async () => {
-      const { data, error: loadError } = await supabase
-        .from("customers")
-        .select("id, company_name, cin, status")
-        .eq("status", "Active")
-        .order("company_name");
-
-      if (loadError) return setError(loadError.message);
-      setCustomers(data || []);
-      if (data?.[0]) selectCustomer(data[0]);
-    };
-    loadCustomers();
+    (async () => {
+      const [customerResult, caseResult] = await Promise.all([
+        supabase.from("customers").select("id,company_name,cin,status").eq("status", "Active").order("company_name"),
+        supabase.from("legal_cases").select("id,case_number,court_name,location,petitioner_vs_respondent,summary,created_at").order("created_at", { ascending: false }),
+      ]);
+      if (customerResult.error || caseResult.error) setError((customerResult.error || caseResult.error).message); else { setCustomers(customerResult.data || []); setCases(caseResult.data || []); }
+    })();
   }, []);
 
-  const selectCustomer = (customer) => {
-    setCustomerId(String(customer.id));
-    setFieldInputs((previous) => ({
-      ...previous,
-      companyName: customer.company_name || "",
-      companyCIN: customer.cin || "",
-    }));
-  };
-
-  const updateField = (key, value) =>
-    setFieldInputs((previous) => ({ ...previous, [key]: value }));
+  const update = (key, value) => setFields((previous) => ({ ...previous, [key]: value }));
+  const chooseCustomer = (id) => { const customer = customers.find((item) => item.id === Number(id)); setCustomerId(id); if (customer) setFields((previous) => ({ ...previous, companyName: customer.company_name || "", companyCIN: customer.cin || "" })); };
+  const chooseCase = (id) => { const item = cases.find((record) => record.id === Number(id)); setLegalCaseId(id); if (item) setFields((previous) => ({ ...previous, caseNumber: item.case_number || "", orderReference: previous.orderReference || item.case_number || "", bench: `${item.court_name || ""}${item.location ? `, ${item.location}` : ""}`, parties: item.petitioner_vs_respondent || "", caseSummary: item.summary || "", petitionerName: item.petitioner_vs_respondent?.split(/\s+v(?:s\.?|\.)?\s+/i)[0] || "" })); };
+  const addAttachment = async (file) => { if (!file) return; setAttachmentBusy(true); setAttachmentError(""); setAttachment(null); setAttachmentText(""); try { setAttachmentText(await extractLocalDocumentText(file)); setAttachment(file); } catch (err) { setAttachmentError(err.message || "Could not read the selected document locally."); setAttachmentKey((key) => key + 1); } finally { setAttachmentBusy(false); } };
+  const removeAttachment = () => { setAttachment(null); setAttachmentText(""); setAttachmentError(""); setAttachmentKey((key) => key + 1); };
 
   const generate = async (event) => {
     event.preventDefault();
-    if (!customerId) return setError("Select a customer before generating a draft.");
-    if (!rawNotes.trim()) return setError("Add the factual instructions before generating a draft.");
-    if (!confidentialityConfirmed) return setError("Confirm that sharing these instructions with the configured research and drafting providers is authorised.");
-
-    setIsDrafting(true);
-    setError("");
-    setDocuments([]);
-    setSources([]);
-
-    const { data, error: functionError } = await supabase.functions.invoke(
-      "generate-litigation-draft",
-      {
-        body: {
-          customerId: Number(customerId),
-          matterType: selectedMatter.id,
-          matterName: selectedMatter.matterName,
-          forum: selectedMatter.forum,
-          fields: fieldInputs,
-          rawNotes,
-          dataProcessingConsent: true,
-        },
-      }
-    );
-
-    setIsDrafting(false);
-    if (functionError) return setError(functionError.message);
-    if (data?.error) return setError(data.error);
-
-    setDocuments(data?.documents || []);
-    setSources(data?.sources || []);
-    setActiveDocument(data?.documents?.[0] || null);
+    if (!customerId && !legalCaseId) return setError("Select a client company or existing litigation case.");
+    if (!notes.trim()) return setError("Add factual instructions for the document.");
+    if (matterId === "OTHER_CUSTOM_DOCUMENT" && !String(fields.documentTitle || "").trim()) return setError("Enter the title of the custom document.");
+    if (!consent) return setError("Confirm that you are authorised to share instructions and extracted attachment text with the configured drafting providers.");
+    setDrafting(true); setError(""); setDocuments([]); setSources([]); setActiveDocument(null);
+    const { data, error: invokeError } = await supabase.functions.invoke("generate-litigation-draft", { body: { customerId: customerId ? Number(customerId) : null, legalCaseId: legalCaseId ? Number(legalCaseId) : null, matterType: matter.id, matterName: matter.name, forum: matter.forum, fields, rawNotes: notes, attachmentName: attachment?.name || "", attachmentText, dataProcessingConsent: true } });
+    setDrafting(false); if (invokeError) return setError(invokeError.message); if (data?.error) return setError(data.error); setDocuments(data?.documents || []); setSources(data?.sources || []); setActiveDocument(data?.documents?.[0] || null);
   };
+  const editDocument = (content) => { setActiveDocument((current) => ({ ...current, content })); setDocuments((items) => items.map((item) => item.title === activeDocument.title ? { ...item, content } : item)); };
+  const copy = async () => { if (!activeDocument) return; await navigator.clipboard.writeText(activeDocument.content); setCopied(true); window.setTimeout(() => setCopied(false), 1800); };
 
-  const copy = async () => {
-    if (!activeDocument) return;
-    await navigator.clipboard.writeText(activeDocument.content);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
-  };
-
-  const updateActiveDocument = (content) => {
-    setActiveDocument((current) => ({ ...current, content }));
-    setDocuments((items) => items.map((item) => item.title === activeDocument.title ? { ...item, content } : item));
-  };
-
-  return (
-    <div className="p-6 bg-slate-950 min-h-screen text-slate-100 font-sans">
-      <div className="mb-6 border-b border-slate-800 pb-4">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-950/40 px-3 py-1 rounded-full border border-amber-900/60">
-          Judicial draft workspace
-        </span>
-        <h1 className="text-2xl font-black mt-2 tracking-tight">AI Litigation & Court Drafting Console</h1>
-        <p className="text-xs text-slate-400 mt-1">Drafts are not saved. Review every output and source before use or filing.</p>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        <form onSubmit={generate} className="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <div>
-            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Customer context from Supabase</label>
-            <select value={customerId} onChange={(e) => selectCustomer(customers.find((item) => item.id === Number(e.target.value)))} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-amber-400 font-bold">
-              {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.company_name}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Case action framework</label>
-            <select value={selectedMatterId} onChange={(e) => { setSelectedMatterId(e.target.value); setDocuments([]); setSources([]); }} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-amber-400 font-bold">
-              {COURT_MATTERS.map((matter) => <option key={matter.id} value={matter.id}>[{matter.forum}] {matter.matterName}</option>)}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 bg-slate-950 p-4 rounded-lg border border-slate-800">
-            <input value={fieldInputs.companyName || ""} onChange={(e) => updateField("companyName", e.target.value)} placeholder="Company name" className="w-full bg-slate-900 border border-slate-800 text-xs px-3 py-2 rounded" />
-            {selectedMatter.fields.map(([key, label]) => <input key={key} value={fieldInputs[key] || ""} onChange={(e) => updateField(key, e.target.value)} placeholder={label} className="w-full bg-slate-900 border border-slate-800 text-xs px-3 py-2 rounded" />)}
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Fact matrix / dictation notes</label>
-            <textarea value={rawNotes} onChange={(e) => setRawNotes(e.target.value)} required className="w-full h-40 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 resize-none" placeholder="Add dates, allegations, responses, documents available, and the relief sought." />
-          </div>
-          <label className="flex items-start gap-2 text-[11px] text-slate-400 leading-relaxed cursor-pointer">
-            <input type="checkbox" checked={confidentialityConfirmed} onChange={(e) => setConfidentialityConfirmed(e.target.checked)} className="mt-0.5" />
-            <span>I am authorised to share these instructions with the configured research and drafting providers. I will verify every fact, authority, citation and draft before use.</span>
-          </label>
-          {error && <p className="text-xs text-rose-400">{error}</p>}
-          <button disabled={isDrafting} type="submit" className="w-full bg-gradient-to-r from-amber-600 to-amber-700 disabled:opacity-50 text-white font-bold py-3 rounded-lg text-xs tracking-wider uppercase">
-            {isDrafting ? "Researching and drafting..." : "Generate draft and supporting documents"}
-          </button>
-        </form>
-
-        <section className="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5">
-          {activeDocument ? <>
-            <div className="flex gap-2 mb-4 overflow-x-auto">{documents.map((document) => <button key={document.title} onClick={() => setActiveDocument(document)} className={`px-3 py-2 text-xs rounded font-bold ${activeDocument.title === document.title ? "bg-amber-600" : "bg-slate-800"}`}>{document.title}</button>)}</div>
-            <textarea value={activeDocument.content} onChange={(e) => updateActiveDocument(e.target.value)} className="w-full h-[420px] bg-slate-950 border border-slate-800 rounded-xl p-5 text-xs font-mono leading-relaxed" />
-            <button onClick={copy} className="mt-3 w-full bg-emerald-700 py-2 rounded text-xs font-bold uppercase">{copied ? "Copied" : "Copy current document"}</button>
-          </> : <div className="h-[520px] flex items-center justify-center border border-dashed border-slate-800 rounded-xl text-xs text-slate-500">Choose a customer, add facts, then generate.</div>}
-          {sources.length > 0 && <div className="mt-5 border-t border-slate-800 pt-4"><h2 className="text-xs font-bold uppercase text-slate-400 mb-2">Research sources — verify before relying on them</h2>{sources.filter((source) => /^https?:\/\//i.test(source.link || "")).map((source) => <a key={source.link} href={source.link} target="_blank" rel="noreferrer" className="block text-xs text-amber-400 hover:underline py-1">{source.title || source.link}</a>)}</div>}
-        </section>
-      </div>
-    </div>
-  );
+  return <div className="min-h-screen bg-slate-950 p-6 text-slate-100"><header className="mb-6 border-b border-slate-800 pb-4"><span className="rounded-full border border-amber-900/60 bg-amber-950/40 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-400">Judicial draft workspace</span><h1 className="mt-2 text-2xl font-black">AI Litigation & Court Drafting Console</h1><p className="mt-1 text-xs text-slate-400">Generated drafts are for review and copying only; they are not saved as document records.</p></header><div className="grid grid-cols-1 gap-6 xl:grid-cols-5"><form onSubmit={generate} className="space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-5 xl:col-span-2"><FieldLabel text="Existing litigation case (from Litigation & NCLT)" /><select value={legalCaseId} onChange={(event) => chooseCase(event.target.value)} className={fieldClass}><option value="">Choose existing case (optional)</option>{cases.map((item) => <option key={item.id} value={item.id}>{caseLabel(item)}</option>)}</select><FieldLabel text="Client company context" /><select value={customerId} onChange={(event) => chooseCustomer(event.target.value)} className={fieldClass}><option value="">Other / not in client list</option>{customers.map((item) => <option key={item.id} value={item.id}>{item.company_name}</option>)}</select><FieldLabel text="Document / action to generate" /><select value={matterId} onChange={(event) => { setMatterId(event.target.value); setDocuments([]); setSources([]); }} className={fieldClass}>{MATTERS.map((item) => <option key={item.id} value={item.id}>[{item.forum}] {item.name}</option>)}</select><div className="space-y-3 rounded-lg border border-slate-800 bg-slate-950 p-4"><input value={fields.companyName || ""} onChange={(event) => update("companyName", event.target.value)} placeholder="Company / client name (when Other selected)" className={fieldClass} />{matter.fields.map(([key, label]) => <input key={key} value={fields[key] || ""} onChange={(event) => update(key, event.target.value)} placeholder={label} className={fieldClass} />)}</div>{matterId === "ORDER_COPY_SUBMISSION" && <Notice tone="amber">Generates a covering letter, submission checklist and acknowledgement sheet for the original order copy plus two additional copies.</Notice>}{matterId === "OTHER_CUSTOM_DOCUMENT" && <Notice tone="indigo">Enter the exact document title and instructions. The selected case is only used as factual context; no fixed NCLT/NCLAT template is forced.</Notice>}<TemporaryAttachment file={attachment} busy={attachmentBusy} error={attachmentError} inputKey={attachmentKey} onSelect={addAttachment} onRemove={removeAttachment} /><FieldLabel text="Fact matrix / submission instructions" /><textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="h-40 w-full rounded-xl border border-slate-800 bg-slate-950 p-3 font-mono text-xs leading-relaxed" placeholder="State exactly what you need, including recipient, order or petition details, enclosures, date, wording requirements and case facts." /><label className="flex gap-2 text-[11px] leading-relaxed text-slate-400"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />I am authorised to share these instructions and any extracted attachment text with the configured research and drafting providers. I will verify every draft before use.</label>{error && <p className="text-xs text-rose-400">{error}</p>}<button disabled={drafting || attachmentBusy} className="w-full rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 py-3 text-xs font-bold uppercase disabled:opacity-50">{drafting ? "Researching and drafting..." : "Generate draft and supporting documents"}</button></form><section className="rounded-xl border border-slate-800 bg-slate-900 p-5 xl:col-span-3">{activeDocument ? <><div className="mb-4 flex gap-2 overflow-x-auto">{documents.map((item) => <button type="button" key={item.title} onClick={() => setActiveDocument(item)} className={`whitespace-nowrap rounded px-3 py-2 text-xs font-bold ${activeDocument.title === item.title ? "bg-amber-600" : "bg-slate-800"}`}>{item.title}</button>)}</div><textarea value={activeDocument.content} onChange={(event) => editDocument(event.target.value)} className="h-[420px] w-full rounded-xl border border-slate-800 bg-slate-950 p-5 font-mono text-xs leading-relaxed" /><button type="button" onClick={copy} className="mt-3 w-full rounded bg-emerald-700 py-2 text-xs font-bold uppercase">{copied ? "Copied" : "Copy current document"}</button></> : <div className="flex h-[520px] items-center justify-center rounded-xl border border-dashed border-slate-800 text-xs text-slate-500">Choose context, add instructions and optionally attach a source document.</div>}{sources.length > 0 && <div className="mt-5 border-t border-slate-800 pt-4"><p className="text-xs font-bold uppercase text-slate-400">Research sources — verify before relying on them</p>{sources.filter((item) => /^https?:\/\//i.test(item.link || "")).map((item) => <a key={item.link} href={item.link} target="_blank" rel="noreferrer" className="mt-2 block text-xs text-amber-400 hover:underline">{item.title || item.link}</a>)}</div>}</section></div></div>;
 }
+
+function FieldLabel({ text }) { return <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{text}</label>; }
+function Notice({ tone, children }) { return <p className={`rounded border p-3 text-[11px] leading-relaxed ${tone === "amber" ? "border-amber-900/60 bg-amber-950/30 text-amber-100" : "border-indigo-900/60 bg-indigo-950/30 text-indigo-100"}`}>{children}</p>; }
+function TemporaryAttachment({ file, busy, error, inputKey, onSelect, onRemove }) { return <div className="rounded-lg border border-slate-800 bg-slate-950 p-3"><FieldLabel text="Optional document context — temporary only" /><input key={inputKey} type="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.xls,.txt,.csv" onChange={(event) => onSelect(event.target.files?.[0])} className="w-full text-[11px]" />{busy && <p className="mt-2 text-[11px] text-amber-300">Reading document locally…</p>}{file && <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-emerald-300"><span className="truncate">Attached for this draft: {file.name}</span><button type="button" onClick={onRemove} className="rounded border border-slate-600 px-2 py-1 text-[10px] font-bold text-slate-200">Remove</button></div>}{error && <p className="mt-2 text-[11px] text-rose-300">{error}</p>}<p className="mt-2 text-[10px] leading-relaxed text-slate-500">Extracted text is used only for this request after consent. The original source is not uploaded to Supabase Storage or saved in the database.</p></div>; }
